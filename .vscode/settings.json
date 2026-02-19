@@ -1,0 +1,23 @@
+{
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "[markdown]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
+  },
+  "markdownlint.config": {
+    "default": true, // すべてのルールを有効にする
+    "MD041": false,  // h1から始まらないmdも許容
+    "MD033": {       // 使用可能なHTMLタグを制限
+      "allowed_elements": [
+        "br",                 // 表内の改行などに利用
+        "details",            // README.mdの縮小表示に利用
+        "summary"             // 同上
+      ]
+    },
+    "MD024": {
+      "siblings_only": true   // セクションを跨いでの同名見出しは許可
+    }
+  }
+}
