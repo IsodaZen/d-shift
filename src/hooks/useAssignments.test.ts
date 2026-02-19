@@ -60,6 +60,23 @@ describe('useAssignments', () => {
       expect(spots).toContain('A1')
       expect(spots).toContain('A2')
     })
+
+    it('同一スタッフが同一日に午前→午後の順でアサインした場合、午後も同じ駐車場枠が割り当てられる', () => {
+      // spec: 同一スタッフが同一日に複数時間帯でアサインされる場合は既存枠を再利用する
+      const { result } = renderHook(() => useAssignments(getAllSpots))
+
+      act(() => {
+        result.current.addAssignment('staff-1', '2025-01-06', 'morning', true)
+      })
+      act(() => {
+        result.current.addAssignment('staff-1', '2025-01-06', 'afternoon', true)
+      })
+
+      const spots = result.current.assignments.map((a) => a.parkingSpot)
+      expect(spots[0]).toBe('A1')
+      expect(spots[1]).toBe('A1') // 同じ枠を共有
+      expect(spots.filter((s) => s === 'A1')).toHaveLength(2)
+    })
   })
 
   describe('removeAssignment', () => {

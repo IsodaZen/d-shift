@@ -21,7 +21,7 @@ export function useAssignments(getAllSpots: () => string[]) {
   const addAssignment = useCallback(
     (staffId: string, date: string, timeSlot: TimeSlot, usesParking: boolean): ShiftAssignment => {
       const parkingSpot = usesParking
-        ? assignParking(date, getAllSpots(), assignments)
+        ? assignParking(date, getAllSpots(), assignments, staffId)
         : null
 
       const entry: ShiftAssignment = {

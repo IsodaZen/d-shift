@@ -1,16 +1,27 @@
 // タスク3.3: useShiftConfig フック
 import { useCallback } from 'react'
+import { parseISO, getDay } from 'date-fns'
 import { useLocalStorage } from './useLocalStorage'
-import type { ShiftSlotConfig, TimeSlot } from '../types'
+import type { DayCategory, ShiftSlotConfig, TimeSlot } from '../types'
+import { DEFAULT_SHIFT_SLOT_COUNTS } from '../types'
 
 const STORAGE_KEY = 'd-shift:shift-config'
+
+function getDayCategory(date: string): DayCategory {
+  const day = getDay(parseISO(date)) // 0=日曜, 6=土曜
+  if (day === 0) return 'sunday'
+  if (day === 6) return 'saturday'
+  return 'weekday'
+}
 
 export function useShiftConfig() {
   const [configs, setConfigs] = useLocalStorage<ShiftSlotConfig[]>(STORAGE_KEY, [])
 
   const getRequiredCount = useCallback(
     (date: string, timeSlot: TimeSlot): number => {
-      return configs.find((c) => c.date === date && c.timeSlot === timeSlot)?.requiredCount ?? 0
+      const saved = configs.find((c) => c.date === date && c.timeSlot === timeSlot)
+      if (saved !== undefined) return saved.requiredCount
+      return DEFAULT_SHIFT_SLOT_COUNTS[getDayCategory(date)][timeSlot]
     },
     [configs],
   )

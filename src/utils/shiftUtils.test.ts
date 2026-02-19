@@ -68,6 +68,31 @@ describe('assignParking', () => {
     const result = assignParking('2025-01-06', allSpots, existing)
     expect(result).toBe('A1')
   })
+
+  it('同一スタッフが同一日に複数時間帯でアサイン済みの場合、既存の枠を返す', () => {
+    // spec: 同一スタッフが同一日に複数時間帯でアサインされる場合は既存枠を再利用する
+    const existing = [
+      makeAssignment({ staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: 'A1' }),
+    ]
+    const result = assignParking('2025-01-06', allSpots, existing, 's1')
+    expect(result).toBe('A1')
+  })
+
+  it('同一スタッフでも別の日のアサインは再利用しない', () => {
+    const existing = [
+      makeAssignment({ staffId: 's1', date: '2025-01-07', timeSlot: 'morning', parkingSpot: 'A1' }),
+    ]
+    const result = assignParking('2025-01-06', allSpots, existing, 's1')
+    expect(result).toBe('A1') // 別日なので新規割り当て
+  })
+
+  it('同一スタッフのparkingSpotがnullの場合は再利用せず新規割り当てする', () => {
+    const existing = [
+      makeAssignment({ staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null }),
+    ]
+    const result = assignParking('2025-01-06', allSpots, existing, 's1')
+    expect(result).toBe('A1') // nullは再利用対象外
+  })
 })
 
 // --- spec: shift-assignment / 週上限チェック ---

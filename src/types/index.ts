@@ -47,6 +47,14 @@ export interface ParkingConfig {
   slots: ParkingSlotType[]
 }
 
+export type DayCategory = 'weekday' | 'saturday' | 'sunday'
+
+export const DEFAULT_SHIFT_SLOT_COUNTS: Record<DayCategory, Record<TimeSlot, number>> = {
+  weekday: { morning: 6, afternoon: 6, evening: 1 },
+  saturday: { morning: 2, afternoon: 2, evening: 0 },
+  sunday: { morning: 0, afternoon: 0, evening: 0 },
+}
+
 export const DEFAULT_PARKING_CONFIG: ParkingConfig = {
   slots: [
     { type: 'A', count: 4 },

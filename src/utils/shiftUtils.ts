@@ -4,13 +4,22 @@ import { startOfWeek, endOfWeek, isWithinInterval, parseISO } from 'date-fns'
 
 /**
  * タスク7.1: 駐車場自動割り当て
- * その日の空き枠をA優先で先着順に割り当てる
+ * 同一スタッフ・同一日に既存の枠があればそれを再利用し、なければA優先で先着順に割り当てる
  */
 export function assignParking(
   date: string,
   allSpots: string[],
   existingAssignments: ShiftAssignment[],
+  staffId?: string,
 ): string | null {
+  // 同一スタッフ・同一日に既存の駐車場割り当てがあれば再利用する
+  if (staffId !== undefined) {
+    const existing = existingAssignments.find(
+      (a) => a.staffId === staffId && a.date === date && a.parkingSpot !== null,
+    )
+    if (existing) return existing.parkingSpot
+  }
+
   const usedSpots = existingAssignments
     .filter((a) => a.date === date && a.parkingSpot !== null)
     .map((a) => a.parkingSpot as string)

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useStaff } from './useStaff'
+import type { TimeSlot } from '../types'
 
 // --- spec: staff-management ---
 
@@ -8,7 +9,7 @@ describe('useStaff', () => {
   const newStaffData = {
     name: '山田 花子',
     maxWeeklyShifts: 3,
-    availableSlots: ['morning', 'afternoon'] as const,
+    availableSlots: ['morning', 'afternoon'] as TimeSlot[],
     usesParking: false,
   }
 
