@@ -1,33 +1,62 @@
-// タスク5.1〜5.4, 6.1〜6.4: SettingsPage（シフト枠・駐車場・希望休設定）
+// タスク5.1〜5.4, 6.1〜6.4: SettingsPage（シフト期間・シフト枠・駐車場・希望休設定）
 import { useState } from 'react'
 import { useShiftConfig } from '../hooks/useShiftConfig'
 import { useParkingConfig } from '../hooks/useParkingConfig'
 import { useDayOffs } from '../hooks/useDayOffs'
 import { useStaff } from '../hooks/useStaff'
+import { useShiftPeriod } from '../hooks/useShiftPeriod'
 import { ALL_TIME_SLOTS, TIME_SLOT_LABELS } from '../types'
-import { format, addDays, startOfWeek } from 'date-fns'
+import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
-type Tab = 'shift' | 'dayoff' | 'parking'
-
-function getWeekDates() {
-  const start = startOfWeek(new Date(), { weekStartsOn: 1 })
-  return Array.from({ length: 7 }, (_, i) => format(addDays(start, i), 'yyyy-MM-dd'))
-}
+type Tab = 'period' | 'shift' | 'dayoff' | 'parking'
 
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('shift')
+  const [activeTab, setActiveTab] = useState<Tab>('period')
   const { getRequiredCount, setRequiredCount } = useShiftConfig()
   const { parkingConfig, updateSlotCount } = useParkingConfig()
   const { dayOffs, addDayOff, deleteDayOff } = useDayOffs()
   const { staff } = useStaff()
+  const { shiftPeriod, setShiftPeriod, clearShiftPeriod, getPeriodDates } = useShiftPeriod()
+
+  // シフト期間フォーム
+  const [periodStart, setPeriodStart] = useState(shiftPeriod.startDate)
+  const [periodEnd, setPeriodEnd] = useState(shiftPeriod.endDate)
+  const [periodError, setPeriodError] = useState('')
 
   // 希望休登録フォーム
   const [dayOffStaffId, setDayOffStaffId] = useState('')
   const [dayOffDate, setDayOffDate] = useState('')
   const [dayOffError, setDayOffError] = useState('')
 
-  const dates = getWeekDates()
+  const periodDates = getPeriodDates()
+
+  const handleSavePeriod = () => {
+    if (!periodStart || !periodEnd) return
+
+    const start = parseISO(periodStart)
+    const end = parseISO(periodEnd)
+
+    if (start > end) {
+      setPeriodError('開始日は終了日以前の日付を指定してください')
+      return
+    }
+
+    const dayDiff = differenceInCalendarDays(end, start)
+    if (dayDiff > 34) {
+      setPeriodError('期間は35日以内で設定してください')
+      return
+    }
+
+    setPeriodError('')
+    setShiftPeriod({ startDate: periodStart, endDate: periodEnd })
+  }
+
+  const handleClearPeriod = () => {
+    clearShiftPeriod()
+    setPeriodStart('')
+    setPeriodEnd('')
+  }
 
   const handleAddDayOff = () => {
     if (!dayOffStaffId || !dayOffDate) {
@@ -49,6 +78,7 @@ export function SettingsPage() {
       <div className="flex border-b border-gray-200 bg-white">
         {(
           [
+            { id: 'period', label: 'シフト期間' },
             { id: 'shift', label: 'シフト枠' },
             { id: 'dayoff', label: '希望休' },
             { id: 'parking', label: '駐車場' },
@@ -70,46 +100,99 @@ export function SettingsPage() {
       </div>
 
       <div className="p-4">
-        {/* タスク5.1〜5.2: シフト枠・必要人数設定 */}
-        {activeTab === 'shift' && (
+        {/* シフト期間設定 */}
+        {activeTab === 'period' && (
           <div>
-            <p className="text-xs text-gray-500 mb-3">今週の各時間帯の必要人数を設定してください</p>
-            <div className="space-y-3">
-              {dates.map((date) => (
-                <div key={date} className="bg-white border border-gray-200 rounded-xl p-3">
-                  <p className="text-sm font-medium text-gray-700 mb-2">
-                    {format(new Date(date + 'T00:00:00'), 'M月d日(E)', { locale: ja })}
-                  </p>
-                  <div className="flex gap-3">
-                    {ALL_TIME_SLOTS.map((slot) => {
-                      const val = getRequiredCount(date, slot)
-                      return (
-                        <div key={slot} className="flex-1 text-center">
-                          <label className="block text-xs text-gray-500 mb-1">
-                            {TIME_SLOT_LABELS[slot]}
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={20}
-                            value={val}
-                            onChange={(e) => {
-                              const v = parseInt(e.target.value, 10)
-                              if (!isNaN(v) && v >= 0) setRequiredCount(date, slot, v)
-                            }}
-                            className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                          />
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
+            <p className="text-xs text-gray-500 mb-3">シフトを作成する期間（開始日・終了日）を設定してください</p>
+            <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">開始日</label>
+                <input
+                  type="date"
+                  value={periodStart}
+                  onChange={(e) => setPeriodStart(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">終了日</label>
+                <input
+                  type="date"
+                  value={periodEnd}
+                  onChange={(e) => setPeriodEnd(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              {periodError && (
+                <p className="text-red-500 text-xs">{periodError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleSavePeriod}
+                  className="flex-1 bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-600"
+                >
+                  保存
+                </button>
+                <button
+                  onClick={handleClearPeriod}
+                  className="px-4 border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm hover:bg-gray-50"
+                >
+                  クリア
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* タスク6.1〜6.4: 希望休管理 */}
+        {/* シフト枠・必要人数設定 */}
+        {activeTab === 'shift' && (
+          <div>
+            {periodDates.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                <p className="text-sm font-medium">シフト作成期間を先に設定してください</p>
+                <p className="text-xs mt-1">「シフト期間」タブで期間を設定してください</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-gray-500 mb-3">シフト作成期間内の各時間帯の必要人数を設定してください</p>
+                <div className="space-y-3">
+                  {periodDates.map((date) => (
+                    <div key={date} className="bg-white border border-gray-200 rounded-xl p-3">
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        {format(new Date(date + 'T00:00:00'), 'M月d日(E)', { locale: ja })}
+                      </p>
+                      <div className="flex gap-3">
+                        {ALL_TIME_SLOTS.map((slot) => {
+                          const val = getRequiredCount(date, slot)
+                          return (
+                            <div key={slot} className="flex-1 text-center">
+                              <label className="block text-xs text-gray-500 mb-1">
+                                {TIME_SLOT_LABELS[slot]}
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={20}
+                                value={val}
+                                onChange={(e) => {
+                                  const v = parseInt(e.target.value, 10)
+                                  if (!isNaN(v) && v >= 0) setRequiredCount(date, slot, v)
+                                }}
+                                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 希望休管理 */}
         {activeTab === 'dayoff' && (
           <div>
             <div className="bg-white border border-gray-200 rounded-xl p-3 mb-4">
@@ -141,7 +224,6 @@ export function SettingsPage() {
               </div>
             </div>
 
-            {/* タスク6.3: 希望休一覧 */}
             {dayOffs.length === 0 ? (
               <p className="text-center text-gray-400 text-sm py-6">登録された希望休はありません</p>
             ) : (
@@ -176,7 +258,7 @@ export function SettingsPage() {
           </div>
         )}
 
-        {/* タスク5.3: 駐車場枠設定 */}
+        {/* 駐車場枠設定 */}
         {activeTab === 'parking' && (
           <div>
             <p className="text-xs text-gray-500 mb-3">駐車場種別ごとの枠数を設定してください</p>

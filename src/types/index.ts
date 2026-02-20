@@ -49,6 +49,11 @@ export interface ParkingConfig {
 
 export type DayCategory = 'weekday' | 'saturday' | 'sunday'
 
+export interface ShiftPeriod {
+  startDate: string // YYYY-MM-DD
+  endDate: string   // YYYY-MM-DD
+}
+
 export const DEFAULT_SHIFT_SLOT_COUNTS: Record<DayCategory, Record<TimeSlot, number>> = {
   weekday: { morning: 6, afternoon: 6, evening: 1 },
   saturday: { morning: 2, afternoon: 2, evening: 0 },

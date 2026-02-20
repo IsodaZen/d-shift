@@ -55,5 +55,24 @@ export function useAssignments(getAllSpots: () => string[]) {
     [assignments],
   )
 
-  return { assignments, getAssignment, addAssignment, removeAssignment, getAssignmentsForDate }
+  /** 期間内の既存アサインをすべて削除し、新しいアサインを一括保存する */
+  const bulkSetAssignments = useCallback(
+    (newAssignments: ShiftAssignment[], periodDates: string[]) => {
+      const dateSet = new Set(periodDates)
+      setAssignments((prev) => {
+        const outside = prev.filter((a) => !dateSet.has(a.date))
+        return [...outside, ...newAssignments]
+      })
+    },
+    [setAssignments],
+  )
+
+  return {
+    assignments,
+    getAssignment,
+    addAssignment,
+    removeAssignment,
+    getAssignmentsForDate,
+    bulkSetAssignments,
+  }
 }
