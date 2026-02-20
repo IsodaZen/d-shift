@@ -12,16 +12,24 @@ interface GenerateAutoShiftParams {
   allParkingSpots: string[]
 }
 
-/** 指定日が含まれるISO週（月〜日）のアサイン数をカウントする */
+/**
+ * 指定日が含まれるISO週（月〜日）の出勤日数をカウントする。
+ * 同一日に複数の時間帯にアサインされる場合も1出勤としてカウントする。
+ */
 function getWeeklyCount(staffId: string, date: string, assignments: ShiftAssignment[]): number {
   const target = parseISO(date)
   const weekStart = startOfWeek(target, { weekStartsOn: 1 })
   const weekEnd = endOfWeek(target, { weekStartsOn: 1 })
-  return assignments.filter((a) => {
-    if (a.staffId !== staffId) return false
-    const d = parseISO(a.date)
-    return isWithinInterval(d, { start: weekStart, end: weekEnd })
-  }).length
+  const assignedDates = new Set(
+    assignments
+      .filter((a) => {
+        if (a.staffId !== staffId) return false
+        const d = parseISO(a.date)
+        return isWithinInterval(d, { start: weekStart, end: weekEnd })
+      })
+      .map((a) => a.date),
+  )
+  return assignedDates.size
 }
 
 /**

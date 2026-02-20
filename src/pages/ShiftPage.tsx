@@ -1,6 +1,7 @@
 // シフト表ページ
 import { useState } from 'react'
-import { addWeeks, subWeeks, startOfWeek, parseISO } from 'date-fns'
+import { addWeeks, subWeeks, startOfWeek, parseISO, format } from 'date-fns'
+import { ja } from 'date-fns/locale'
 import { WeekNav } from '../components/WeekNav'
 import { ShiftTable } from '../components/ShiftTable'
 import { useStaff } from '../hooks/useStaff'
@@ -12,6 +13,13 @@ import { useHelpAlert } from '../hooks/useHelpAlert'
 import { useShiftPeriod } from '../hooks/useShiftPeriod'
 import { getWeekDates, getDefaultWeekStart } from '../utils/dateUtils'
 import { generateAutoShift } from '../utils/autoShiftGenerator'
+import { ALL_TIME_SLOTS, TIME_SLOT_LABELS, type TimeSlot } from '../types'
+
+interface ShortageEntry {
+  date: string
+  slot: TimeSlot
+  shortage: number
+}
 
 export function ShiftPage() {
   const { shiftPeriod, getPeriodDates } = useShiftPeriod()
@@ -24,6 +32,7 @@ export function ShiftPage() {
   })
 
   const [showConfirm, setShowConfirm] = useState(false)
+  const [shortageEntries, setShortageEntries] = useState<ShortageEntry[] | null>(null)
 
   const { staff } = useStaff()
   const { getAllSpots } = useParkingConfig()
@@ -59,6 +68,20 @@ export function ShiftPage() {
     })
     bulkSetAssignments(newAssignments, periodDates)
     setShowConfirm(false)
+
+    // 不足チェック: 必要人数を満たせなかった日付・時間帯を収集
+    const shortages: ShortageEntry[] = []
+    for (const date of periodDates) {
+      for (const slot of ALL_TIME_SLOTS) {
+        const required = getRequiredCount(date, slot)
+        if (required <= 0) continue
+        const assigned = newAssignments.filter((a) => a.date === date && a.timeSlot === slot).length
+        if (assigned < required) {
+          shortages.push({ date, slot, shortage: required - assigned })
+        }
+      }
+    }
+    setShortageEntries(shortages)
   }
 
   if (staff.length === 0) {
@@ -102,6 +125,39 @@ export function ShiftPage() {
         onRemoveAssignment={removeAssignment}
         getRequiredCount={getRequiredCount}
       />
+
+      {/* 自動生成後の不足通知 */}
+      {shortageEntries !== null && (
+        <div role="alertdialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl max-h-[80vh] flex flex-col">
+            <p className="text-sm font-medium text-gray-800 mb-3">自動生成が完了しました</p>
+            {shortageEntries.length === 0 ? (
+              <p className="text-sm text-green-600">必要人数をすべて満たしました</p>
+            ) : (
+              <>
+                <p className="text-xs text-gray-500 mb-2">必要人数を満たせなかった時間帯：</p>
+                <ul className="overflow-y-auto space-y-1 flex-1">
+                  {shortageEntries.map((e) => (
+                    <li key={`${e.date}-${e.slot}`} className="text-xs text-gray-700 flex justify-between">
+                      <span>
+                        {format(new Date(e.date + 'T00:00:00'), 'M月d日(E)', { locale: ja })}
+                        　{TIME_SLOT_LABELS[e.slot]}
+                      </span>
+                      <span className="text-red-500 font-medium">不足{e.shortage}人</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            <button
+              onClick={() => setShortageEntries(null)}
+              className="mt-4 w-full py-2.5 rounded-xl bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600"
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 上書き確認ダイアログ */}
       {showConfirm && (

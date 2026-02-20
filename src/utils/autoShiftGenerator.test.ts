@@ -156,6 +156,34 @@ describe('generateAutoShift', () => {
       expect(s1Assignments).toHaveLength(2) // 週上限の2回まで
     })
 
+    it('同一日の複数時間帯アサインは1出勤としてカウントする', () => {
+      // spec: 同一日に複数の時間帯にアサインされる場合も1出勤としてカウントする
+      // maxWeeklyShifts=2、月曜に午前・午後両方アサイン済みで、火曜にもアサインできるか
+      const staff = [makeStaff({ id: 's1', name: '山田', maxWeeklyShifts: 2 })]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03', '2025-02-04', '2025-02-05'],
+        staff,
+        dayOffs: [],
+        // 月曜: 午前・午後両方1人必要、火曜以降: 午前のみ1人
+        getRequiredCount: (date, slot) => {
+          if (date === '2025-02-03') return slot === 'evening' ? 0 : 1
+          return slot === 'morning' ? 1 : 0
+        },
+        allParkingSpots,
+      })
+
+      // 月曜は午前・午後の2スロットだが、週1出勤扱い
+      // → 火曜はまだ週1回なので2日目（上限2回）はアサインされる
+      const feb03 = result.filter((a) => a.staffId === 's1' && a.date === '2025-02-03')
+      const feb04 = result.filter((a) => a.staffId === 's1' && a.date === '2025-02-04')
+      expect(feb03.length).toBe(2) // 午前・午後の2スロット
+      expect(feb04.length).toBe(1) // 2日目（週2回目）にもアサイン
+      // 水曜は週上限（2出勤）に達しているのでアサインなし
+      const feb05 = result.filter((a) => a.staffId === 's1' && a.date === '2025-02-05')
+      expect(feb05.length).toBe(0)
+    })
+
     it('週をまたぐ場合は週ごとに上限がリセットされる', () => {
       // 月曜〜翌週月曜 (8日間)
       const staff = [makeStaff({ id: 's1', name: '山田', maxWeeklyShifts: 2 })]

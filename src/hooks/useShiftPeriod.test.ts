@@ -1,10 +1,31 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useShiftPeriod } from './useShiftPeriod'
 
 // --- spec: shift-period-config ---
 
+beforeEach(() => {
+  localStorage.clear()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('useShiftPeriod', () => {
+  describe('デフォルト期間', () => {
+    it('LocalStorage未設定時は当月16日〜翌月15日をデフォルト期間として返す', () => {
+      // spec: 期間未設定の場合は当月16日〜翌月15日をデフォルトとして扱う
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-20'))
+
+      const { result } = renderHook(() => useShiftPeriod())
+
+      expect(result.current.shiftPeriod.startDate).toBe('2026-02-16')
+      expect(result.current.shiftPeriod.endDate).toBe('2026-03-15')
+    })
+  })
+
   describe('setShiftPeriod', () => {
     it('シフト作成期間を登録できる', () => {
       // spec: シフト作成期間を登録・変更できる
@@ -45,8 +66,11 @@ describe('useShiftPeriod', () => {
   })
 
   describe('clearShiftPeriod', () => {
-    it('登録済みの期間を削除できる', () => {
-      // spec: シフト作成期間を登録・変更できる（削除も含む）
+    it('登録済みの期間を削除するとデフォルト期間（当月16日〜翌月15日）に戻る', () => {
+      // spec: シフト作成期間を登録・変更できる（削除後はデフォルト期間に戻る）
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-20'))
+
       const { result } = renderHook(() => useShiftPeriod())
 
       act(() => {
@@ -56,7 +80,8 @@ describe('useShiftPeriod', () => {
         result.current.clearShiftPeriod()
       })
 
-      expect(result.current.shiftPeriod).toBeNull()
+      expect(result.current.shiftPeriod.startDate).toBe('2026-02-16')
+      expect(result.current.shiftPeriod.endDate).toBe('2026-03-15')
     })
   })
 
@@ -85,7 +110,11 @@ describe('useShiftPeriod', () => {
       expect(result.current.isWithinPeriod('2025-03-01')).toBe(false)
     })
 
-    it('期間未設定時はfalseを返す', () => {
+    it('期間未設定時はデフォルト期間外の日付でfalseを返す', () => {
+      // デフォルト期間（2026-02-16〜2026-03-15）外の日付でfalse
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-20'))
+
       const { result } = renderHook(() => useShiftPeriod())
 
       expect(result.current.isWithinPeriod('2025-02-15')).toBe(false)
@@ -119,10 +148,17 @@ describe('useShiftPeriod', () => {
       expect(result.current.getPeriodDates()[0]).toBe('2025-02-01')
     })
 
-    it('期間未設定時は空配列を返す', () => {
-      const { result } = renderHook(() => useShiftPeriod())
+    it('期間未設定時はデフォルト期間の日付リストを返す', () => {
+      // spec: 期間未設定の場合は当月16日〜翌月15日をデフォルトとして扱う
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-20'))
 
-      expect(result.current.getPeriodDates()).toEqual([])
+      const { result } = renderHook(() => useShiftPeriod())
+      const dates = result.current.getPeriodDates()
+
+      expect(dates[0]).toBe('2026-02-16')
+      expect(dates[dates.length - 1]).toBe('2026-03-15')
+      expect(dates.length).toBe(28) // 2月16日〜3月15日 = 28日間
     })
 
     it('終了日が開始日より前の場合は空配列を返す', () => {

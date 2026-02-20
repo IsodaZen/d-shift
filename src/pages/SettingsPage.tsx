@@ -6,7 +6,7 @@ import { useDayOffs } from '../hooks/useDayOffs'
 import { useStaff } from '../hooks/useStaff'
 import { useShiftPeriod } from '../hooks/useShiftPeriod'
 import { ALL_TIME_SLOTS, TIME_SLOT_LABELS } from '../types'
-import { format } from 'date-fns'
+import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
 type Tab = 'period' | 'shift' | 'dayoff' | 'parking'
@@ -20,8 +20,9 @@ export function SettingsPage() {
   const { shiftPeriod, setShiftPeriod, clearShiftPeriod, getPeriodDates } = useShiftPeriod()
 
   // シフト期間フォーム
-  const [periodStart, setPeriodStart] = useState(shiftPeriod?.startDate ?? '')
-  const [periodEnd, setPeriodEnd] = useState(shiftPeriod?.endDate ?? '')
+  const [periodStart, setPeriodStart] = useState(shiftPeriod.startDate)
+  const [periodEnd, setPeriodEnd] = useState(shiftPeriod.endDate)
+  const [periodError, setPeriodError] = useState('')
 
   // 希望休登録フォーム
   const [dayOffStaffId, setDayOffStaffId] = useState('')
@@ -31,9 +32,24 @@ export function SettingsPage() {
   const periodDates = getPeriodDates()
 
   const handleSavePeriod = () => {
-    if (periodStart && periodEnd) {
-      setShiftPeriod({ startDate: periodStart, endDate: periodEnd })
+    if (!periodStart || !periodEnd) return
+
+    const start = parseISO(periodStart)
+    const end = parseISO(periodEnd)
+
+    if (start > end) {
+      setPeriodError('開始日は終了日以前の日付を指定してください')
+      return
     }
+
+    const dayDiff = differenceInCalendarDays(end, start)
+    if (dayDiff > 34) {
+      setPeriodError('期間は35日以内で設定してください')
+      return
+    }
+
+    setPeriodError('')
+    setShiftPeriod({ startDate: periodStart, endDate: periodEnd })
   }
 
   const handleClearPeriod = () => {
@@ -107,6 +123,9 @@ export function SettingsPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
+              {periodError && (
+                <p className="text-red-500 text-xs">{periodError}</p>
+              )}
               <div className="flex gap-2 pt-1">
                 <button
                   onClick={handleSavePeriod}

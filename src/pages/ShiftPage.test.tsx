@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ShiftPage } from './ShiftPage'
 
@@ -41,13 +41,13 @@ describe('ShiftPage', () => {
       expect(screen.getByRole('button', { name: /自動生成/ })).toBeInTheDocument()
     })
 
-    it('シフト作成期間が未設定の場合は「自動生成」ボタンが表示されない', () => {
-      // spec: shiftPeriod が null の場合は非表示
+    it('シフト作成期間が未設定の場合もデフォルト期間が適用され「自動生成」ボタンが表示される', () => {
+      // spec: 期間未設定時はデフォルト期間（当月16日〜翌月15日）が適用される
       setupStaff()
 
       render(<ShiftPage />)
 
-      expect(screen.queryByRole('button', { name: /自動生成/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /自動生成/ })).toBeInTheDocument()
     })
   })
 
@@ -61,6 +61,51 @@ describe('ShiftPage', () => {
 
       // 2025-02-03 週の表示（"2025年2月3日週" のラベル）
       expect(screen.getByText(/2025年2月3日週/)).toBeInTheDocument()
+    })
+  })
+
+  describe('既存アサインなし → 確認なく即時生成', () => {
+    it('既存アサインがない場合は確認ダイアログを表示せず即時生成される', async () => {
+      // spec: 既存アサインがない場合は確認ダイアログを表示せず、直ちに自動生成が実行される
+      const user = userEvent.setup()
+      setupStaff()
+      setupShiftPeriod('2025-02-03', '2025-02-03') // 月曜1日
+
+      render(<ShiftPage />)
+      await user.click(screen.getByRole('button', { name: /自動生成/ }))
+
+      // 上書き確認ダイアログは表示されない
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('自動生成後通知', () => {
+    it('自動生成後に不足がある場合は不足一覧が表示される', async () => {
+      // spec: 不足がある場合は不足一覧（日付・時間帯・不足人数）が表示される
+      const user = userEvent.setup()
+      setupStaff() // スタッフ1人 / 平日デフォルト必要人数=午前6・午後6・夜1人 → 不足発生
+      setupShiftPeriod('2025-02-03', '2025-02-03')
+
+      render(<ShiftPage />)
+      await user.click(screen.getByRole('button', { name: /自動生成/ }))
+
+      const alertDialog = screen.getByRole('alertdialog')
+      expect(alertDialog).toBeInTheDocument()
+      // 通知モーダル内に「不足N人」の表示があることを確認
+      expect(within(alertDialog).getAllByText(/不足/).length).toBeGreaterThan(0)
+    })
+
+    it('自動生成後にすべて充足の場合はその旨が表示される', async () => {
+      // spec: すべての必要人数を満たせた場合は「必要人数をすべて満たしました」旨のメッセージが表示される
+      const user = userEvent.setup()
+      setupStaff()
+      setupShiftPeriod('2025-02-09', '2025-02-09') // 日曜（デフォルト必要人数=全時間帯0人）
+
+      render(<ShiftPage />)
+      await user.click(screen.getByRole('button', { name: /自動生成/ }))
+
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+      expect(screen.getByText(/すべて満たしました/)).toBeInTheDocument()
     })
   })
 
