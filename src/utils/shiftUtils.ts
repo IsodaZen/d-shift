@@ -29,8 +29,9 @@ export function assignParking(
 }
 
 /**
- * タスク7.2: 週上限出勤回数チェック
- * staffId + 対象日 → その週のアサイン数を返す
+ * タスク7.2: 週上限出勤日数チェック
+ * staffId + 対象日 → その週のユニーク出勤日数を返す
+ * 同一日に複数時間帯（AM/PM/夕方）があっても1日分としてカウントする
  */
 export function getWeeklyAssignmentCount(
   staffId: string,
@@ -41,11 +42,15 @@ export function getWeeklyAssignmentCount(
   const weekStart = startOfWeek(target, { weekStartsOn: 1 })
   const weekEnd = endOfWeek(target, { weekStartsOn: 1 })
 
-  return assignments.filter((a) => {
-    if (a.staffId !== staffId) return false
-    const d = parseISO(a.date)
-    return isWithinInterval(d, { start: weekStart, end: weekEnd })
-  }).length
+  const datesInWeek = assignments
+    .filter((a) => {
+      if (a.staffId !== staffId) return false
+      const d = parseISO(a.date)
+      return isWithinInterval(d, { start: weekStart, end: weekEnd })
+    })
+    .map((a) => a.date)
+
+  return new Set(datesInWeek).size
 }
 
 /**
