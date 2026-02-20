@@ -18,6 +18,7 @@ interface ShiftTableProps {
   helpAlerts: HelpAlertInfo[]
   onAddAssignment: (staffId: string, date: string, timeSlot: TimeSlot, usesParking: boolean) => void
   onRemoveAssignment: (staffId: string, date: string, timeSlot: TimeSlot) => void
+  getRequiredCount?: (date: string, slot: TimeSlot) => number
 }
 
 interface ModalState {
@@ -33,6 +34,7 @@ export function ShiftTable({
   helpAlerts,
   onAddAssignment,
   onRemoveAssignment,
+  getRequiredCount,
 }: ShiftTableProps) {
   const [modal, setModal] = useState<ModalState | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -89,6 +91,17 @@ export function ShiftTable({
   const getHelpAlert = (date: string, timeSlot: TimeSlot) =>
     helpAlerts.find((h) => h.date === date && h.timeSlot === timeSlot)
 
+  /** アサイン数が必要人数を下回る時間帯が一つでもある場合に不足数合計を返す */
+  const getAssignmentShortage = (date: string): number => {
+    if (!getRequiredCount) return 0
+    return ALL_TIME_SLOTS.reduce((total, slot) => {
+      const required = getRequiredCount(date, slot)
+      if (required <= 0) return total
+      const assigned = assignments.filter((a) => a.date === date && a.timeSlot === slot).length
+      return total + Math.max(0, required - assigned)
+    }, 0)
+  }
+
   const modalStaff = modal ? staff.find((s) => s.id === modal.staffId) : null
 
   return (
@@ -102,27 +115,36 @@ export function ShiftTable({
               <th className="sticky left-0 z-10 bg-gray-50 border border-gray-200 px-2 py-1 text-left text-gray-600 font-medium min-w-[72px]">
                 氏名
               </th>
-              {dates.map((date) => (
-                <th
-                  key={date}
-                  className="border border-gray-200 px-1 py-1 text-center text-gray-600 font-medium min-w-[60px]"
-                >
-                  {formatDateLabel(date)}
-                  {/* タスク10.2: ヘルプ要バッジ */}
-                  {ALL_TIME_SLOTS.map((slot) => {
-                    const alert = getHelpAlert(date, slot)
-                    if (!alert) return null
-                    return (
-                      <div
-                        key={slot}
-                        className="mt-0.5 bg-red-100 text-red-600 text-[10px] rounded px-1 py-0.5 font-normal"
-                      >
-                        {TIME_SLOT_LABELS[slot]}+{alert.shortage}
+              {dates.map((date) => {
+                const shortage = getAssignmentShortage(date)
+                return (
+                  <th
+                    key={date}
+                    className="border border-gray-200 px-1 py-1 text-center text-gray-600 font-medium min-w-[60px]"
+                  >
+                    {formatDateLabel(date)}
+                    {/* Phase 7: アサイン不足インジケーター */}
+                    {shortage > 0 && (
+                      <div className="mt-0.5 bg-orange-100 text-orange-600 text-[10px] rounded px-1 py-0.5 font-normal">
+                        不足{shortage}
                       </div>
-                    )
-                  })}
-                </th>
-              ))}
+                    )}
+                    {/* タスク10.2: ヘルプ要バッジ（出勤可能人数ベース） */}
+                    {ALL_TIME_SLOTS.map((slot) => {
+                      const alert = getHelpAlert(date, slot)
+                      if (!alert) return null
+                      return (
+                        <div
+                          key={slot}
+                          className="mt-0.5 bg-red-100 text-red-600 text-[10px] rounded px-1 py-0.5 font-normal"
+                        >
+                          {TIME_SLOT_LABELS[slot]}+{alert.shortage}
+                        </div>
+                      )
+                    })}
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>

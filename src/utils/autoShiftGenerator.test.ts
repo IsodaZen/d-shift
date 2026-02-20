@@ -13,7 +13,6 @@ const makeStaff = (overrides: Partial<Staff> & { id: string; name: string }): St
 
 const allParkingSpots = ['A1', 'A2', 'A3', 'A4', 'B1']
 
-const getRequiredCount = (_date: string, _slot: Parameters<typeof generateAutoShift>[0]['getRequiredCount'] extends (d: string, s: infer S) => number ? S : never) => 2
 
 describe('generateAutoShift', () => {
   describe('基本的なアサイン', () => {
