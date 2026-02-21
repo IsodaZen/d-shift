@@ -5,6 +5,7 @@
 
 1. **土日祝の見落とし**: スタッフのシフトを組む際に、土曜・日曜・祝日を意識せずに配置してしまうケースがある
 2. **視認性の低下**: 全員のシフトを俯瞰するとき、週のリズム（平日/休日）が視覚的に把握しにくい
+3. **祝日の必要人数設定漏れ**: 祝日のデフォルト必要人数が平日扱い（6/6/1）のままになるため、毎回手動で0に設定し直す手間が生じている
 
 ## What Changes
 
@@ -26,12 +27,22 @@
 - 振替休日（日曜日が祝日のとき、翌月曜が振替休日）も算出する
 - ハッピーマンデー（体育の日・海の日など）は月・週の計算で算出する
 - 対象年: 現在表示中の日付が含まれる年を動的に処理する（特定年のハードコードはしない）
+- 祝日は土曜・日曜と重なる場合も「祝日」として最優先で扱う
+
+### 変更3: 祝日のデフォルトシフト枠を0/0/0に設定
+
+`src/types/index.ts` と `src/hooks/useShiftConfig.ts` を更新し、未設定の祝日の必要人数デフォルトを全時間帯0に設定する。
+
+- `DayCategory` に `'holiday'` を追加し、デフォルト値を `{ morning: 0, afternoon: 0, evening: 0 }` とする
+- `useShiftConfig` の `getDayCategory()` が `isJapaneseHoliday()` を使って祝日を識別するよう更新する
+- 祝日かつ土曜日の場合も祝日（0/0/0）が優先される
 
 ## Capabilities
 
 ### Modified Capabilities
 
-- `shift-schedule-view`: シフト表の日付列ヘッダーおよびセル列背景を曜日・祝日区分に応じて色分けする
+- `shift-schedule-view`: シフト表の日付列ヘッダーを曜日・祝日区分に応じて色分けする（祝日は土曜より優先）
+- `shift-slot-config`: 未設定の祝日の必要人数デフォルト値を0/0/0に設定する
 
 ## Impact
 
@@ -41,5 +52,8 @@
 |---|---|
 | `src/utils/dateUtils.ts` | `isJapaneseHoliday(dateStr)` / `getDayType(dateStr)` ユーティリティを追加 |
 | `src/utils/dateUtils.test.ts` | 上記ユーティリティのユニットテストを追加（TDD: Redフェーズ先行） |
-| `src/components/ShiftTable.tsx` | 列ヘッダーと列背景に曜日・祝日スタイルを適用 |
+| `src/components/ShiftTable.tsx` | 列ヘッダーに曜日・祝日スタイルを適用 |
 | `src/components/ShiftTable.test.tsx` | 土日祝の列スタイルが正しく適用されるコンポーネントテストを追加 |
+| `src/types/index.ts` | `DayCategory` に `'holiday'` を追加、`DEFAULT_SHIFT_SLOT_COUNTS` に祝日エントリを追加 |
+| `src/hooks/useShiftConfig.ts` | `getDayCategory()` を祝日対応に更新 |
+| `src/hooks/useShiftConfig.test.ts` | 祝日のデフォルト値テストを追加（TDD: Redフェーズ先行） |
