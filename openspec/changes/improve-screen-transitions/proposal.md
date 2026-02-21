@@ -14,6 +14,9 @@ React Router を導入してURLベースの画面遷移（SPA）に切り替え�
 
 - `react-router-dom` を依存関係に追加する
 - GitHub Pages（静的ホスティング）で動作するよう `HashRouter` を採用する
+  - `vite.config.ts` の `base: '/d-shift/'` により本番URLは `https://<owner>.github.io/d-shift/` になる
+  - `BrowserRouter` を使う場合、GitHub Pagesはサブパス（例: `/d-shift/shift`）のリクエストに対して404を返す。`HashRouter` ではハッシュ以降はサーバーに送られないため、この問題が発生しない
+  - アプリ内リンク・`useNavigate` はハッシュパス（`/`, `/shift` など）を使用し、Viteの `base` パスは意識しなくてよい
 - 既存の3つのページ（シフト表・スタッフ・設定）をURLルートとして定義する
 
 ### ルート構成
