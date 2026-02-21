@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import type { Staff, TimeSlot } from '../types'
 import { ALL_TIME_SLOTS, TIME_SLOT_LABELS } from '../types'
+import { NumberStepper } from './NumberStepper'
 
 type StaffFormData = Omit<Staff, 'id'>
 
@@ -61,16 +62,11 @@ export function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">週上限出勤回数</label>
-        <input
-          type="number"
+        <NumberStepper
+          value={form.maxWeeklyShifts}
+          onChange={(v) => setForm((p) => ({ ...p, maxWeeklyShifts: v }))}
           min={1}
           max={7}
-          value={form.maxWeeklyShifts}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10)
-            setForm((p) => ({ ...p, maxWeeklyShifts: isNaN(v) ? p.maxWeeklyShifts : v }))
-          }}
-          className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
         {errors.maxWeeklyShifts && (
           <p className="text-red-500 text-xs mt-1">{errors.maxWeeklyShifts}</p>

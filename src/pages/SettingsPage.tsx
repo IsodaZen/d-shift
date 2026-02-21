@@ -7,6 +7,7 @@ import { useDayOffs } from '../hooks/useDayOffs'
 import { useStaff } from '../hooks/useStaff'
 import { useShiftPeriod } from '../hooks/useShiftPeriod'
 import { ALL_TIME_SLOTS, TIME_SLOT_LABELS } from '../types'
+import { NumberStepper } from '../components/NumberStepper'
 import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
@@ -191,16 +192,12 @@ export function SettingsPage() {
                               <label className="block text-xs text-gray-500 mb-1">
                                 {TIME_SLOT_LABELS[slot]}
                               </label>
-                              <input
-                                type="number"
+                              <NumberStepper
+                                value={val}
+                                onChange={(v) => setRequiredCount(date, slot, v)}
                                 min={0}
                                 max={20}
-                                value={val}
-                                onChange={(e) => {
-                                  const v = parseInt(e.target.value, 10)
-                                  if (!isNaN(v) && v >= 0) setRequiredCount(date, slot, v)
-                                }}
-                                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                size="sm"
                               />
                             </div>
                           )
@@ -301,21 +298,11 @@ export function SettingsPage() {
                   <span className="text-sm font-medium text-gray-700">
                     駐車場 {slot.type}
                   </span>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => slot.count > 0 && updateSlotCount(slot.type, slot.count - 1)}
-                      className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center text-lg"
-                    >
-                      −
-                    </button>
-                    <span className="text-lg font-semibold w-6 text-center">{slot.count}</span>
-                    <button
-                      onClick={() => updateSlotCount(slot.type, slot.count + 1)}
-                      className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center text-lg"
-                    >
-                      ＋
-                    </button>
-                  </div>
+                  <NumberStepper
+                    value={slot.count}
+                    onChange={(count) => updateSlotCount(slot.type, count)}
+                    min={0}
+                  />
                 </div>
               ))}
             </div>

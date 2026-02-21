@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StaffForm } from './StaffForm'
 
@@ -44,18 +44,17 @@ describe('StaffForm', () => {
     expect(mockSubmit).not.toHaveBeenCalled()
   })
 
-  it('週上限回数を0に変更して保存しようとするとエラーが表示される', () => {
+  it('週上限回数がmin値（1）のとき−ボタンが無効化され、値を減らせない', async () => {
     // spec: 週上限出勤回数に0以下の値を入力した場合は登録できない
-    // within(container) でDOMをスコープし、fireEvent.submit でフォーム送信を確実にトリガー
-    const { container } = renderForm()
-    const q = within(container)
+    const user = userEvent.setup()
+    renderForm()
 
-    fireEvent.change(q.getByPlaceholderText('山田 花子'), { target: { value: '山田 花子' } })
-    fireEvent.change(q.getByRole('spinbutton'), { target: { value: '0' } })
-    fireEvent.submit(container.querySelector('form')!)
-
-    expect(q.getByText('1以上を入力してください')).toBeInTheDocument()
-    expect(mockSubmit).not.toHaveBeenCalled()
+    // デフォルト値は3なので、1になるまで−ボタンを押す
+    const decrementBtn = screen.getByRole('button', { name: '減らす' })
+    await user.click(decrementBtn) // 3→2
+    await user.click(decrementBtn) // 2→1
+    // 1のとき−ボタンが無効化されている
+    expect(decrementBtn).toBeDisabled()
   })
 
   it('キャンセルボタンを押すとonCancelが呼ばれる', async () => {
