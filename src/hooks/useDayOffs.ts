@@ -35,5 +35,28 @@ export function useDayOffs() {
     [dayOffs],
   )
 
-  return { dayOffs, addDayOff, deleteDayOff, isDayOff }
+  const syncDayOffs = useCallback(
+    (staffId: string, dates: string[]): { added: number; removed: number } => {
+      const existing = dayOffs.filter((d) => d.staffId === staffId)
+      const existingDates = existing.map((d) => d.date)
+
+      const toAdd = dates.filter((date) => !existingDates.includes(date))
+      const toRemove = existingDates.filter((date) => !dates.includes(date))
+
+      if (toAdd.length === 0 && toRemove.length === 0) {
+        return { added: 0, removed: 0 }
+      }
+
+      setDayOffs((prev) => {
+        const filtered = prev.filter((d) => !(d.staffId === staffId && toRemove.includes(d.date)))
+        const added = toAdd.map((date) => ({ id: crypto.randomUUID(), staffId, date }))
+        return [...filtered, ...added]
+      })
+
+      return { added: toAdd.length, removed: toRemove.length }
+    },
+    [dayOffs, setDayOffs],
+  )
+
+  return { dayOffs, addDayOff, deleteDayOff, isDayOff, syncDayOffs }
 }
