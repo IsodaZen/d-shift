@@ -12,24 +12,26 @@ React Router を導入してURLベースの画面遷移（SPA）に切り替え�
 
 ### React Router の導入（SPA化）
 
-- `react-router-dom` を依存関係に追加する
-- GitHub Pages（静的ホスティング）で動作するよう `HashRouter` を採用する
-  - `vite.config.ts` の `base: '/d-shift/'` により本番URLは `https://<owner>.github.io/d-shift/` になる
-  - `BrowserRouter` を使う場合、GitHub Pagesはサブパス（例: `/d-shift/shift`）のリクエストに対して404を返す。`HashRouter` ではハッシュ以降はサーバーに送られないため、この問題が発生しない
-  - アプリ内リンク・`useNavigate` はハッシュパス（`/`, `/shift` など）を使用し、Viteの `base` パスは意識しなくてよい
-- 既存の3つのページ（シフト表・スタッフ・設定）をURLルートとして定義する
+- `react-router-dom`（v7系）を依存関係に追加する
+- **`BrowserRouter`** を採用し、`basename={import.meta.env.BASE_URL}` でViteのベースパスを動的注入する
+  - `import.meta.env.BASE_URL` は `vite.config.ts` の `base: '/d-shift/'` を自動参照するため、ハードコード不要
+- GitHub Pagesはサブパス（例: `/d-shift/shift`）へのリクエストに404を返すため、以下の対策を行う:
+  - **`vite.config.ts` にカスタムプラグイン `spaFallback()`** を追加し、ビルド時に `404.html` を自動生成する
+  - `404.html` はパス情報を `sessionStorage` に保存してベースURLへリダイレクトする
+  - `src/main.tsx` で起動時に `sessionStorage` からパスを復元し `history.replaceState()` でURLを戻す
+- アプリ内リンク・`useNavigate` はベースパスを除いた相対パス（`/`, `/shift` など）を使用する
 
 ### ルート構成
 
-| URL（ハッシュ） | ページ | 役割 |
+| URL（パス） | ページ | 役割 |
 |---|---|---|
-| `#/` | StaffPage | スタッフ登録（初回フローの起点） |
-| `#/settings` | SettingsPage | シフト期間・シフト枠・希望休・駐車場設定 |
-| `#/settings/period` | SettingsPage（期間タブ選択） | シフト期間設定 |
-| `#/settings/shift` | SettingsPage（枠タブ選択） | シフト枠設定 |
-| `#/settings/dayoff` | SettingsPage（希望休タブ選択） | 希望休設定 |
-| `#/settings/parking` | SettingsPage（駐車場タブ選択） | 駐車場設定 |
-| `#/shift` | ShiftPage | シフト表・自動生成・手動編集 |
+| `/` | StaffPage | スタッフ登録（初回フローの起点） |
+| `/settings` | SettingsPage | シフト期間・シフト枠・希望休・駐車場設定 |
+| `/settings/period` | SettingsPage（期間タブ選択） | シフト期間設定 |
+| `/settings/shift` | SettingsPage（枠タブ選択） | シフト枠設定 |
+| `/settings/dayoff` | SettingsPage（希望休タブ選択） | 希望休設定 |
+| `/settings/parking` | SettingsPage（駐車場タブ選択） | 駐車場設定 |
+| `/shift` | ShiftPage | シフト表・自動生成・手動編集 |
 
 ### ボトムタブナビゲーションの廃止
 
@@ -82,7 +84,8 @@ React Router を導入してURLベースの画面遷移（SPA）に切り替え�
 | ファイル | 変更内容 |
 |---|---|
 | `package.json` / `bun.lockb` | `react-router-dom` 追加 |
-| `src/main.tsx` | `HashRouter` でアプリをラップ |
+| `vite.config.ts` | カスタムプラグイン `spaFallback()` を追加（ビルド時 `404.html` 自動生成） |
+| `src/main.tsx` | `BrowserRouter` でアプリをラップ・sessionStorageからのパス復元処理を追加 |
 | `src/App.tsx` | ボトムナビゲーション・タブ制御を削除し、`<Routes>` を使ったルーティングに置き換え |
 | `src/pages/StaffPage.tsx` | フロー誘導CTA追加 |
 | `src/pages/SettingsPage.tsx` | URLサブパス連動タブ・フロー誘導CTA追加 |
