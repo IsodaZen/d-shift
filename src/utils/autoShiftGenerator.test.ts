@@ -268,6 +268,72 @@ describe('generateAutoShift', () => {
     })
   })
 
+  describe('強制制約: 駐車場不足時のアサイン除外', () => {
+    it('駐車場が必要なスタッフは駐車場が満杯の場合アサインしない', () => {
+      // spec: usesParking=true のスタッフは駐車場空きがなければ出勤不可
+      // 駐車場1枠のみ、2人ともusesParking=true → 1人目がA1を取得、2人目は除外される
+      const staff = [
+        makeStaff({ id: 's1', name: '山田', usesParking: true }),
+        makeStaff({ id: 's2', name: '鈴木', usesParking: true }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 2 : 0), // 2人必要
+        allParkingSpots: ['A1'], // 駐車場は1枠のみ
+      })
+
+      // 駐車場は1枠のみ → 1人しかアサインできない
+      expect(result).toHaveLength(1)
+      expect(result[0].parkingSpot).toBe('A1')
+    })
+
+    it('駐車場不要のスタッフは駐車場が満杯でもアサインされる', () => {
+      // spec: usesParking=false のスタッフは駐車場の空き状況に関わらず出勤可能
+      const staff = [
+        makeStaff({ id: 's1', name: '山田', usesParking: true }),
+        makeStaff({ id: 's2', name: '鈴木', usesParking: false }), // 駐車場不要
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 2 : 0),
+        allParkingSpots: ['A1'], // 駐車場は1枠のみ
+      })
+
+      // s1がA1を取得、s2は駐車場不要なのでアサインされる
+      expect(result).toHaveLength(2)
+      const s1 = result.find((a) => a.staffId === 's1')
+      const s2 = result.find((a) => a.staffId === 's2')
+      expect(s1?.parkingSpot).toBe('A1')
+      expect(s2?.parkingSpot).toBeNull()
+    })
+
+    it('駐車場が必要なスタッフが同日に既に枠を持っている場合は再利用してアサインされる', () => {
+      // spec: 同日同スタッフは1枠を再利用する（複数スロット出勤でも1枠消費）
+      const staff = [
+        makeStaff({ id: 's1', name: '山田', usesParking: true, availableSlots: ['morning', 'afternoon'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 1 : slot === 'afternoon' ? 1 : 0),
+        allParkingSpots: ['A1'], // 1枠のみ
+      })
+
+      // 午前・午後の2スロットにアサイン（同じ駐車場を再利用）
+      expect(result).toHaveLength(2)
+      expect(result[0].parkingSpot).toBe('A1')
+      expect(result[1].parkingSpot).toBe('A1')
+    })
+  })
+
   describe('強制制約: 全時間帯出勤の原則', () => {
     it('複数時間帯対応のスタッフが出勤する場合、必要な全時間帯にアサインされる', () => {
       // spec: 出勤日には利用可能な全時間帯にアサインする（強制制約）
