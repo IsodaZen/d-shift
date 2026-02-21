@@ -1,7 +1,7 @@
 // 自動シフト生成アルゴリズム（純関数）
 import { parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
 import type { Staff, PreferredDayOff, ShiftAssignment, TimeSlot } from '../types'
-import { assignParking } from './shiftUtils'
+
 
 interface GenerateAutoShiftParams {
   periodDates: string[]
@@ -83,9 +83,18 @@ export function generateAutoShift({
       if (!hasNeeded) continue // 全スロットが充足済み → スキップ
 
       // 駐車場が必要なスタッフは空き枠があるか事前確認（強制制約）
-      // 空きがなければ出勤不可としてスキップ
+      // このスタッフがアサインされる全時間帯で共通して空いている枠を探す
+      // （異なる時間帯で同じ枠が使われていると、同一スタッフでも全スロット分が確保できない）
+      const slotsToAssign = s.availableSlots.filter(
+        (slot) => getRequiredCount(date, slot) > 0 && remaining[slot] > 0,
+      )
+      const usedAtAnySlot = new Set<string>(
+        result
+          .filter((a) => a.date === date && a.parkingSpot !== null && slotsToAssign.includes(a.timeSlot))
+          .map((a) => a.parkingSpot as string),
+      )
       const parkingSpot = s.usesParking
-        ? assignParking(date, allParkingSpots, result, s.id)
+        ? (allParkingSpots.find((spot) => !usedAtAnySlot.has(spot)) ?? null)
         : null
       if (s.usesParking && parkingSpot === null) continue // 駐車場不足 → アサイン除外
 

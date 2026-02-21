@@ -3,16 +3,17 @@ import type { ShiftAssignment, Staff, TimeSlot } from '../types'
 import { startOfWeek, endOfWeek, isWithinInterval, parseISO } from 'date-fns'
 
 /**
- * タスク7.1: 駐車場自動割り当て
- * 同一スタッフ・同一日に既存の枠があればそれを再利用し、なければA優先で先着順に割り当てる
+ * タスク7.1: 駐車場自動割り当て（時間帯ベース）
+ * 同一スタッフ・同一日に既存の枠があればそれを再利用し、なければ同一日・同一時間帯で空いているA優先の枠を割り当てる
  */
 export function assignParking(
   date: string,
+  timeSlot: TimeSlot,
   allSpots: string[],
   existingAssignments: ShiftAssignment[],
   staffId?: string,
 ): string | null {
-  // 同一スタッフ・同一日に既存の駐車場割り当てがあれば再利用する
+  // 同一スタッフ・同一日に既存の駐車場割り当てがあれば再利用する（時間帯にかかわらず）
   if (staffId !== undefined) {
     const existing = existingAssignments.find(
       (a) => a.staffId === staffId && a.date === date && a.parkingSpot !== null,
@@ -20,8 +21,9 @@ export function assignParking(
     if (existing) return existing.parkingSpot
   }
 
+  // 同一日・同一時間帯に使用中の枠のみを「使用中」とみなす
   const usedSpots = existingAssignments
-    .filter((a) => a.date === date && a.parkingSpot !== null)
+    .filter((a) => a.date === date && a.timeSlot === timeSlot && a.parkingSpot !== null)
     .map((a) => a.parkingSpot as string)
 
   const freeSpot = allSpots.find((spot) => !usedSpots.includes(spot))

@@ -45,8 +45,25 @@ describe('useAssignments', () => {
       expect(result.current.assignments[0].parkingSpot).toBeNull()
     })
 
-    it('2人目の駐車場利用者はA2を取得する', () => {
+    it('同一時間帯に2人目の駐車場利用者はA2を取得する', () => {
+      // spec: 同一時間帯にすでに枠が使用されている場合は別の枠が割り当てられる
       // Reactのstate更新はバッチ処理されるため、actを分けて逐次更新する
+      const { result } = renderHook(() => useAssignments(getAllSpots))
+
+      act(() => {
+        result.current.addAssignment('staff-1', '2025-01-06', 'morning', true)
+      })
+      act(() => {
+        result.current.addAssignment('staff-2', '2025-01-06', 'morning', true)
+      })
+
+      const spots = result.current.assignments.map((a) => a.parkingSpot)
+      expect(spots).toContain('A1')
+      expect(spots).toContain('A2')
+    })
+
+    it('異なる時間帯の2人目の駐車場利用者はA1を共有できる', () => {
+      // spec: AMのみのスタッフとPMのみのスタッフが同一枠を共有できる
       const { result } = renderHook(() => useAssignments(getAllSpots))
 
       act(() => {
@@ -57,8 +74,8 @@ describe('useAssignments', () => {
       })
 
       const spots = result.current.assignments.map((a) => a.parkingSpot)
-      expect(spots).toContain('A1')
-      expect(spots).toContain('A2')
+      expect(spots[0]).toBe('A1')
+      expect(spots[1]).toBe('A1') // 時間帯が異なるのでA1を共有
     })
 
     it('同一スタッフが同一日に午前→午後の順でアサインした場合、午後も同じ駐車場枠が割り当てられる', () => {
@@ -96,10 +113,13 @@ describe('useAssignments', () => {
     })
 
     it('対象以外のアサインは残る', () => {
+      // Reactのstate更新はバッチ処理されるため、actを分けて逐次更新する
       const { result } = renderHook(() => useAssignments(getAllSpots))
 
       act(() => {
         result.current.addAssignment('staff-1', '2025-01-06', 'morning', false)
+      })
+      act(() => {
         result.current.addAssignment('staff-1', '2025-01-06', 'afternoon', false)
       })
 
