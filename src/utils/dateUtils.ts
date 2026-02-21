@@ -143,29 +143,25 @@ function addOneDay(dateStr: string): string {
  * 指定年の振替休日・国民の休日を含む全祝日セットを返す
  */
 function getAllHolidaysSet(year: number): Set<string> {
-  // 前後の年も含めた基本祝日セット（年をまたぐ振替に対応）
   const basicCurrent = getBasicHolidaysSet(year)
-  const basicPrev = getBasicHolidaysSet(year - 1)
-
   const holidays = new Set<string>([...basicCurrent])
 
   // 振替休日: 基本祝日が日曜の場合、翌月曜が振替休日
-  // 連続して振替が必要な場合（例：月〜火が祝日で日曜と重なる時）を考慮して
-  // 全ての基本祝日をチェックして振替を追加していく
-  const allBasic = new Set<string>([...basicPrev, ...basicCurrent, ...getBasicHolidaysSet(year + 1)])
+  // 翌年の基本祝日も nextYearBasic に含めることで、振替先が翌年祝日と重なる場合を回避する
+  // ※ 年をまたぐ振替（12月末の日曜祝日→翌年1月の振替）は非対応。
+  //   日本の祝日カレンダーでは12月に祝日が存在しないため実用上問題なし。
+  const nextYearBasic = getBasicHolidaysSet(year + 1)
 
-  for (const holiday of allBasic) {
-    if (!holiday.startsWith(String(year))) continue
+  for (const holiday of basicCurrent) {
     const dow = getDayOfWeek(holiday)
     if (dow === 0) {
       // 日曜が祝日 → 翌月曜が振替
       let candidate = addOneDay(holiday)
       // 振替先がすでに祝日なら、さらに次の日へ（連休時の振替）
-      while (allBasic.has(candidate) || holidays.has(candidate)) {
+      while (holidays.has(candidate) || nextYearBasic.has(candidate)) {
         candidate = addOneDay(candidate)
       }
-      // 振替先が翌年になる場合は対象外
-      // （日本の祝日カレンダーでは12月末に日曜日と重なる祝日は実際には発生しない）
+      // 振替先が翌年になる場合は対象外（実際には発生しない）
       if (candidate.startsWith(String(year))) {
         holidays.add(candidate)
       }
