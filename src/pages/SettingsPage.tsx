@@ -1,5 +1,6 @@
 // タスク5.1〜5.4, 6.1〜6.4: SettingsPage（シフト期間・シフト枠・駐車場・希望休設定）
 import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useShiftConfig } from '../hooks/useShiftConfig'
 import { useParkingConfig } from '../hooks/useParkingConfig'
 import { useDayOffs } from '../hooks/useDayOffs'
@@ -11,13 +12,20 @@ import { ja } from 'date-fns/locale'
 
 type Tab = 'period' | 'shift' | 'dayoff' | 'parking'
 
+const VALID_TABS: Tab[] = ['period', 'shift', 'dayoff', 'parking']
+
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('period')
+  const { tab: tabParam } = useParams<{ tab?: string }>()
+  const navigate = useNavigate()
+
+  // 不正なタブパラメーターは 'period' にフォールバック
+  const activeTab: Tab = VALID_TABS.includes(tabParam as Tab) ? (tabParam as Tab) : 'period'
+
   const { getRequiredCount, setRequiredCount } = useShiftConfig()
   const { parkingConfig, updateSlotCount } = useParkingConfig()
   const { dayOffs, addDayOff, deleteDayOff } = useDayOffs()
   const { staff } = useStaff()
-  const { shiftPeriod, setShiftPeriod, clearShiftPeriod, getPeriodDates } = useShiftPeriod()
+  const { shiftPeriod, setShiftPeriod, clearShiftPeriod, getPeriodDates, isShiftPeriodSaved } = useShiftPeriod()
 
   // シフト期間フォーム
   const [periodStart, setPeriodStart] = useState(shiftPeriod.startDate)
@@ -30,6 +38,10 @@ export function SettingsPage() {
   const [dayOffError, setDayOffError] = useState('')
 
   const periodDates = getPeriodDates()
+
+  const handleTabChange = (tab: Tab) => {
+    navigate(`/settings/${tab}`)
+  }
 
   const handleSavePeriod = () => {
     if (!periodStart || !periodEnd) return
@@ -86,7 +98,7 @@ export function SettingsPage() {
         ).map((t) => (
           <button
             key={t.id}
-            onClick={() => setActiveTab(t.id)}
+            onClick={() => handleTabChange(t.id)}
             className={[
               'flex-1 py-3 text-sm font-medium border-b-2 transition-colors',
               activeTab === t.id
@@ -141,6 +153,16 @@ export function SettingsPage() {
                 </button>
               </div>
             </div>
+
+            {/* フロー誘導 CTA: シフト期間が保存済みの場合 */}
+            {isShiftPeriodSaved && (
+              <button
+                onClick={() => navigate('/settings/shift')}
+                className="mt-4 w-full bg-indigo-500 text-white py-3 rounded-xl text-sm font-medium hover:bg-indigo-600 active:bg-indigo-700"
+              >
+                シフト枠を設定する →
+              </button>
+            )}
           </div>
         )}
 
@@ -189,6 +211,14 @@ export function SettingsPage() {
                 </div>
               </>
             )}
+
+            {/* フロー誘導 CTA: 常時表示 */}
+            <button
+              onClick={() => navigate('/shift')}
+              className="mt-4 w-full bg-indigo-500 text-white py-3 rounded-xl text-sm font-medium hover:bg-indigo-600 active:bg-indigo-700"
+            >
+              シフトを作成する →
+            </button>
           </div>
         )}
 

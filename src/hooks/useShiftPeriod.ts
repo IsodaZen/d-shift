@@ -45,5 +45,8 @@ export function useShiftPeriod() {
     return eachDayOfInterval({ start, end }).map((d) => format(d, 'yyyy-MM-dd'))
   }, [shiftPeriod])
 
-  return { shiftPeriod, setShiftPeriod, clearShiftPeriod, isWithinPeriod, getPeriodDates }
+  // isShiftPeriodSaved: 明示的に保存済みかどうか（null = 未保存またはクリア済み）
+  const isShiftPeriodSaved = shiftPeriodRaw !== null
+
+  return { shiftPeriod, setShiftPeriod, clearShiftPeriod, isWithinPeriod, getPeriodDates, isShiftPeriodSaved }
 }
