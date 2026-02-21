@@ -1,5 +1,6 @@
 // タスク4.2, 4.4, 4.5: StaffPage（スタッフ管理ページ）
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Staff } from '../types'
 import { TIME_SLOT_LABELS } from '../types'
 import { StaffForm } from '../components/StaffForm'
@@ -10,6 +11,7 @@ type FormMode = { type: 'add' } | { type: 'edit'; staff: Staff } | null
 export function StaffPage() {
   const { staff, addStaff, updateStaff, deleteStaff } = useStaff()
   const [mode, setMode] = useState<FormMode>(null)
+  const navigate = useNavigate()
 
   const handleSubmit = (data: Omit<Staff, 'id'>) => {
     if (mode?.type === 'edit') {
@@ -55,39 +57,49 @@ export function StaffPage() {
           <p className="text-xs mt-1">「＋ 追加」からスタッフを登録してください</p>
         </div>
       ) : (
-        <ul className="space-y-2">
-          {staff.map((s) => (
-            <li
-              key={s.id}
-              className="bg-white border border-gray-200 rounded-xl p-3 flex items-start justify-between gap-2"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-800 text-sm">{s.name}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  週{s.maxWeeklyShifts}回上限 ·{' '}
-                  {s.availableSlots.map((sl) => TIME_SLOT_LABELS[sl]).join('/')}
-                  {s.usesParking && ' · 駐車場あり'}
-                </p>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => setMode({ type: 'edit', staff: s })}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded"
-                >
-                  編集
-                </button>
-                <button
-                  onClick={() => {
-                    if (confirm(`「${s.name}」を削除しますか？`)) deleteStaff(s.id)
-                  }}
-                  className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded"
-                >
-                  削除
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="space-y-2">
+            {staff.map((s) => (
+              <li
+                key={s.id}
+                className="bg-white border border-gray-200 rounded-xl p-3 flex items-start justify-between gap-2"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-800 text-sm">{s.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    週{s.maxWeeklyShifts}回上限 ·{' '}
+                    {s.availableSlots.map((sl) => TIME_SLOT_LABELS[sl]).join('/')}
+                    {s.usesParking && ' · 駐車場あり'}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => setMode({ type: 'edit', staff: s })}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded"
+                  >
+                    編集
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`「${s.name}」を削除しますか？`)) deleteStaff(s.id)
+                    }}
+                    className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded"
+                  >
+                    削除
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* フロー誘導 CTA: スタッフが1件以上の場合 */}
+          <button
+            onClick={() => navigate('/settings/period')}
+            className="mt-4 w-full bg-indigo-500 text-white py-3 rounded-xl text-sm font-medium hover:bg-indigo-600 active:bg-indigo-700"
+          >
+            シフト期間を設定する →
+          </button>
+        </>
       )}
     </div>
   )
