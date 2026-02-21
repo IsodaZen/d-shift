@@ -29,13 +29,13 @@ describe('assignParking', () => {
 
   it('駐車場枠が空いている場合、A優先で最初の空き枠を返す', () => {
     // spec: 駐車場枠が空いている場合に自動割り当てされる
-    const result = assignParking('2025-01-06', allSpots, [])
+    const result = assignParking('2025-01-06', 'morning', allSpots, [])
     expect(result).toBe('A1')
   })
 
   it('A1が使用済みの場合、A2を返す', () => {
     const existing = [makeAssignment({ staffId: 's1', date: '2025-01-06', parkingSpot: 'A1' })]
-    const result = assignParking('2025-01-06', allSpots, existing)
+    const result = assignParking('2025-01-06', 'morning', allSpots, existing)
     expect(result).toBe('A2')
   })
 
@@ -43,7 +43,7 @@ describe('assignParking', () => {
     const existing = ['A1', 'A2', 'A3', 'A4'].map((spot, i) =>
       makeAssignment({ staffId: `s${i}`, date: '2025-01-06', parkingSpot: spot }),
     )
-    const result = assignParking('2025-01-06', allSpots, existing)
+    const result = assignParking('2025-01-06', 'morning', allSpots, existing)
     expect(result).toBe('B1')
   })
 
@@ -52,20 +52,20 @@ describe('assignParking', () => {
     const existing = ['A1', 'A2', 'A3', 'A4', 'B1'].map((spot, i) =>
       makeAssignment({ staffId: `s${i}`, date: '2025-01-06', parkingSpot: spot }),
     )
-    const result = assignParking('2025-01-06', allSpots, existing)
+    const result = assignParking('2025-01-06', 'morning', allSpots, existing)
     expect(result).toBeNull()
   })
 
   it('別の日の使用済み枠は考慮しない', () => {
     // 別日にA1が使われていても、対象日は空き
     const existing = [makeAssignment({ staffId: 's1', date: '2025-01-07', parkingSpot: 'A1' })]
-    const result = assignParking('2025-01-06', allSpots, existing)
+    const result = assignParking('2025-01-06', 'morning', allSpots, existing)
     expect(result).toBe('A1')
   })
 
   it('parkingSpotがnullのアサインは使用済みとしてカウントしない', () => {
     const existing = [makeAssignment({ staffId: 's1', date: '2025-01-06', parkingSpot: null })]
-    const result = assignParking('2025-01-06', allSpots, existing)
+    const result = assignParking('2025-01-06', 'morning', allSpots, existing)
     expect(result).toBe('A1')
   })
 
@@ -74,7 +74,7 @@ describe('assignParking', () => {
     const existing = [
       makeAssignment({ staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: 'A1' }),
     ]
-    const result = assignParking('2025-01-06', allSpots, existing, 's1')
+    const result = assignParking('2025-01-06', 'afternoon', allSpots, existing, 's1')
     expect(result).toBe('A1')
   })
 
@@ -82,7 +82,7 @@ describe('assignParking', () => {
     const existing = [
       makeAssignment({ staffId: 's1', date: '2025-01-07', timeSlot: 'morning', parkingSpot: 'A1' }),
     ]
-    const result = assignParking('2025-01-06', allSpots, existing, 's1')
+    const result = assignParking('2025-01-06', 'morning', allSpots, existing, 's1')
     expect(result).toBe('A1') // 別日なので新規割り当て
   })
 
@@ -90,8 +90,61 @@ describe('assignParking', () => {
     const existing = [
       makeAssignment({ staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null }),
     ]
-    const result = assignParking('2025-01-06', allSpots, existing, 's1')
+    const result = assignParking('2025-01-06', 'morning', allSpots, existing, 's1')
     expect(result).toBe('A1') // nullは再利用対象外
+  })
+})
+
+// --- spec: shift-assignment / 駐車場自動割り当て（時間帯ベース共有） ---
+
+describe('assignParking（時間帯ベース共有）', () => {
+  const allSpots = ['A1', 'A2', 'A3', 'A4', 'B1']
+
+  it('AMのみのスタッフがA1を使用している状態で、PMのみのスタッフがA1を取得できる', () => {
+    // spec: AMのみのスタッフとPMのみのスタッフが同一枠を共有できる
+    const existing = [
+      makeAssignment({ staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: 'A1' }),
+    ]
+    const result = assignParking('2025-01-06', 'afternoon', allSpots, existing)
+    expect(result).toBe('A1')
+  })
+
+  it('同一時間帯に別スタッフがA1を使用している場合、A2が割り当てられる', () => {
+    // spec: 同一時間帯にすでに枠が使用されている場合は別の枠が割り当てられる
+    const existing = [
+      makeAssignment({ staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: 'A1' }),
+    ]
+    const result = assignParking('2025-01-06', 'morning', allSpots, existing)
+    expect(result).toBe('A2')
+  })
+
+  it('同一スタッフが同一日のAM・PM両方に出勤する場合、PM時も同じスロットを再利用する', () => {
+    // spec: 同一スタッフが同一日に複数時間帯でアサインされる場合は既存枠を再利用する
+    // PMにA1が別スタッフで使用中でも、同一スタッフ優先で再利用される
+    const existing = [
+      makeAssignment({ staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: 'A1' }),
+      makeAssignment({ staffId: 's2', date: '2025-01-06', timeSlot: 'afternoon', parkingSpot: 'A1' }),
+    ]
+    const result = assignParking('2025-01-06', 'afternoon', allSpots, existing, 's1')
+    expect(result).toBe('A1')
+  })
+
+  it('全スロットが同一時間帯に埋まっている場合はnullを返す', () => {
+    // spec: 同一時間帯の全枠が満杯の場合は割り当てなしになる
+    const existing = ['A1', 'A2', 'A3', 'A4', 'B1'].map((spot, i) =>
+      makeAssignment({ staffId: `s${i}`, date: '2025-01-06', timeSlot: 'morning', parkingSpot: spot }),
+    )
+    const result = assignParking('2025-01-06', 'morning', allSpots, existing)
+    expect(result).toBeNull()
+  })
+
+  it('夕方のスタッフと午前のスタッフが同一枠を共有できる', () => {
+    // spec: 夕方のスタッフと午前のスタッフが同一枠を共有できる
+    const existing = [
+      makeAssignment({ staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: 'A1' }),
+    ]
+    const result = assignParking('2025-01-06', 'evening', allSpots, existing)
+    expect(result).toBe('A1')
   })
 })
 
