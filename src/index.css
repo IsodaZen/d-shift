@@ -5,3 +5,9 @@
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* iOSのSafariでinput[type="date"]がコンテナからはみ出るのを防ぐ */
+input[type='date'] {
+  max-width: 100%;
+  min-width: 0;
+}
