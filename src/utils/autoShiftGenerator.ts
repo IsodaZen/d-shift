@@ -82,13 +82,16 @@ export function generateAutoShift({
       )
       if (!hasNeeded) continue // 全スロットが充足済み → スキップ
 
+      // 駐車場が必要なスタッフは空き枠があるか事前確認（強制制約）
+      // 空きがなければ出勤不可としてスキップ
+      const parkingSpot = s.usesParking
+        ? assignParking(date, allParkingSpots, result, s.id)
+        : null
+      if (s.usesParking && parkingSpot === null) continue // 駐車場不足 → アサイン除外
+
       // 出勤させる: 必要人数>0かつ対応可能な全スロットにアサイン（制約4）
       for (const slot of s.availableSlots) {
         if (getRequiredCount(date, slot) <= 0) continue // 必要人数0のスロットはスキップ
-
-        const parkingSpot = s.usesParking
-          ? assignParking(date, allParkingSpots, result, s.id)
-          : null
 
         result.push({
           id: crypto.randomUUID(),
