@@ -1,5 +1,5 @@
 ---
-name: "Review: Spec"
+name: "review:spec"
 description: OpenSpecのメイン仕様をレビューして品質・整合性を評価する
 category: Review
 tags: [review, spec, quality, openspec]

@@ -1,5 +1,5 @@
 ---
-name: "Review: Code"
+name: "review:code"
 description: 指定されたファイル・ディレクトリのコードレビューを実施する
 category: Review
 tags: [review, code, quality]
