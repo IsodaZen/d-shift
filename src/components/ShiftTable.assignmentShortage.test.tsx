@@ -62,6 +62,39 @@ describe('ShiftTable / 不足インジケーター', () => {
     expect(feb04Header?.textContent).not.toMatch(/[!！⚠]|不足/)
   })
 
+  it('複数の時間帯で不足がある場合、合計ではなく最大不足人数が表示される', () => {
+    // spec: AM1人不足・PM1人不足の場合、合計2人ではなく最大値1人不足と表示する
+    const getRequiredCountMultiple = (_date: string, slot: TimeSlot) =>
+      slot === 'morning' || slot === 'afternoon' ? 2 : 0
+
+    // 2025-02-03: morning 必要2人, アサイン1人 → 不足1
+    //             afternoon 必要2人, アサイン1人 → 不足1
+    // 合算すると2人不足だが、最大値は1人不足
+    const assignments = [
+      makeAssignment('s1', '2025-02-03', 'morning'),
+      makeAssignment('s1', '2025-02-03', 'afternoon'),
+    ]
+
+    render(
+      <ShiftTable
+        dates={['2025-02-03']}
+        staff={staff}
+        assignments={assignments}
+        dayOffs={[]}
+        helpAlerts={[]}
+        onAddAssignment={noOp}
+        onRemoveAssignment={noOp}
+        getRequiredCount={getRequiredCountMultiple}
+      />,
+    )
+
+    const headers = screen.getAllByRole('columnheader')
+    const feb03Header = headers.find((h) => h.textContent?.includes('2/3'))
+    // 「不足1」が表示され、「不足2」は表示されない
+    expect(feb03Header?.textContent).toMatch(/不足1/)
+    expect(feb03Header?.textContent).not.toMatch(/不足2/)
+  })
+
   it('すべての時間帯で必要人数を達成している日はインジケーターが表示されない', () => {
     // spec: すべての時間帯で必要人数を達成している日はインジケーターが表示されない
     const assignments = [

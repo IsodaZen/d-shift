@@ -98,14 +98,14 @@ export function ShiftTable({
   const getHelpAlert = (date: string, timeSlot: TimeSlot) =>
     helpAlerts.find((h) => h.date === date && h.timeSlot === timeSlot)
 
-  /** アサイン数が必要人数を下回る時間帯が一つでもある場合に不足数合計を返す */
+  /** アサイン数が必要人数を下回る時間帯が一つでもある場合に不足数の最大値を返す */
   const getAssignmentShortage = (date: string): number => {
     if (!getRequiredCount) return 0
-    return ALL_TIME_SLOTS.reduce((total, slot) => {
+    return ALL_TIME_SLOTS.reduce((max, slot) => {
       const required = getRequiredCount(date, slot)
-      if (required <= 0) return total
+      if (required <= 0) return max
       const assigned = assignments.filter((a) => a.date === date && a.timeSlot === slot).length
-      return total + Math.max(0, required - assigned)
+      return Math.max(max, required - assigned)
     }, 0)
   }
 
