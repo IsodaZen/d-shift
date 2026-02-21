@@ -73,9 +73,16 @@ export function ShiftTable({
       }
 
       // タスク9.2: 週上限チェック
-      const weekCount = getWeeklyAssignmentCount(staffId, date, assignments)
-      if (weekCount >= s.maxWeeklyShifts) {
-        setToast(`週上限（${s.maxWeeklyShifts}回）を超えます`)
+      // 同一日に既にアサインがある場合は出勤日数が増えないためスキップ
+      const alreadyHasAssignmentOnDate = assignments.some(
+        (a) => a.staffId === staffId && a.date === date,
+      )
+      if (!alreadyHasAssignmentOnDate) {
+        const weekCount = getWeeklyAssignmentCount(staffId, date, assignments)
+        if (weekCount >= s.maxWeeklyShifts) {
+          setToast(`週上限（${s.maxWeeklyShifts}日）を超えます`)
+          return
+        }
       }
 
       // タスク9.3: 出勤不可時間帯チェック

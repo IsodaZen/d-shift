@@ -140,6 +140,29 @@ describe('getWeeklyAssignmentCount', () => {
     const count = getWeeklyAssignmentCount('staff-1', '2025-01-06', [])
     expect(count).toBe(0)
   })
+
+  it('同一日にAM・PMの複数時間帯があっても1日としてカウントする', () => {
+    // バグ修正: 同日複数時間帯が「複数日分」としてカウントされていた
+    const assignments: ShiftAssignment[] = [
+      makeAssignment({ id: '1', staffId: 'staff-1', date: '2025-01-06', timeSlot: 'morning' }),
+      makeAssignment({ id: '2', staffId: 'staff-1', date: '2025-01-06', timeSlot: 'afternoon' }),
+    ]
+    const count = getWeeklyAssignmentCount('staff-1', '2025-01-06', assignments)
+    expect(count).toBe(1) // AM+PMでも1日分
+  })
+
+  it('週3日スタッフが3日に複数時間帯ずつアサインされても3日分としてカウントする', () => {
+    // バグ修正: 3日目AM選択時点で超過判定されていた問題
+    const assignments: ShiftAssignment[] = [
+      makeAssignment({ id: '1', staffId: 'staff-1', date: '2025-01-06', timeSlot: 'morning' }),   // 月AM
+      makeAssignment({ id: '2', staffId: 'staff-1', date: '2025-01-06', timeSlot: 'afternoon' }), // 月PM
+      makeAssignment({ id: '3', staffId: 'staff-1', date: '2025-01-07', timeSlot: 'morning' }),   // 火AM
+      makeAssignment({ id: '4', staffId: 'staff-1', date: '2025-01-07', timeSlot: 'afternoon' }), // 火PM
+      makeAssignment({ id: '5', staffId: 'staff-1', date: '2025-01-08', timeSlot: 'morning' }),   // 水AM
+    ]
+    const count = getWeeklyAssignmentCount('staff-1', '2025-01-06', assignments)
+    expect(count).toBe(3) // 月・火・水の3日分（アサイン件数5ではない）
+  })
 })
 
 // --- spec: shift-assignment / 出勤可能時間帯チェック ---
