@@ -268,6 +268,108 @@ describe('generateAutoShift', () => {
     })
   })
 
+  describe('強制制約: 全時間帯出勤の原則', () => {
+    it('複数時間帯対応のスタッフが出勤する場合、必要な全時間帯にアサインされる', () => {
+      // spec: 出勤日には利用可能な全時間帯にアサインする（強制制約）
+      // 現在のアルゴリズム: s1→午前, s2→午後（s1は午後に入らない = 違反）
+      // 正しい動作: s1→午前+午後（1人で両方カバー）, s2は不要
+      const staff = [
+        makeStaff({ id: 's1', name: '山田', availableSlots: ['morning', 'afternoon'] }),
+        makeStaff({ id: 's2', name: '鈴木', availableSlots: ['morning', 'afternoon'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 1 : slot === 'afternoon' ? 1 : 0),
+        allParkingSpots,
+      })
+
+      const morningAssignments = result.filter((a) => a.timeSlot === 'morning')
+      const afternoonAssignments = result.filter((a) => a.timeSlot === 'afternoon')
+
+      expect(morningAssignments).toHaveLength(1)
+      expect(afternoonAssignments).toHaveLength(1)
+      // 同じスタッフが午前・午後の両方にアサインされている（全時間帯出勤の原則）
+      expect(morningAssignments[0].staffId).toBe(afternoonAssignments[0].staffId)
+    })
+
+    it('単一時間帯対応のスタッフはその時間帯のみにアサインされる', () => {
+      // 午前のみ対応スタッフは午前のみ（変化なし）
+      const staff = [
+        makeStaff({ id: 's1', name: '山田', availableSlots: ['morning'] }),
+        makeStaff({ id: 's2', name: '鈴木', availableSlots: ['afternoon'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 1 : slot === 'afternoon' ? 1 : 0),
+        allParkingSpots,
+      })
+
+      // s1は午前のみ、s2は午後のみ
+      expect(result.filter((a) => a.staffId === 's1' && a.timeSlot === 'morning')).toHaveLength(1)
+      expect(result.filter((a) => a.staffId === 's1' && a.timeSlot === 'afternoon')).toHaveLength(0)
+      expect(result.filter((a) => a.staffId === 's2' && a.timeSlot === 'afternoon')).toHaveLength(1)
+      expect(result.filter((a) => a.staffId === 's2' && a.timeSlot === 'morning')).toHaveLength(0)
+    })
+  })
+
+  describe('強制制約: 必要人数超過の禁止', () => {
+    it('全時間帯が必要人数を満たしていればそれ以上スタッフをアサインしない', () => {
+      // spec: 全時間帯が満たされている場合、追加スタッフはアサインしない
+      const staff = [
+        makeStaff({ id: 's1', name: 'A', availableSlots: ['morning'] }),
+        makeStaff({ id: 's2', name: 'B', availableSlots: ['morning'] }),
+        makeStaff({ id: 's3', name: 'C', availableSlots: ['morning'] }),
+        makeStaff({ id: 's4', name: 'D', availableSlots: ['afternoon'] }),
+        makeStaff({ id: 's5', name: 'E', availableSlots: ['afternoon'] }),
+        makeStaff({ id: 's6', name: 'F', availableSlots: ['afternoon'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 2 : slot === 'afternoon' ? 2 : 0),
+        allParkingSpots,
+      })
+
+      // 必要人数ちょうど（超過なし）
+      expect(result.filter((a) => a.timeSlot === 'morning')).toHaveLength(2)
+      expect(result.filter((a) => a.timeSlot === 'afternoon')).toHaveLength(2)
+    })
+
+    it('全時間帯出勤の原則による超過は最小人数となる', () => {
+      // spec: 全時間帯出勤の原則で超過が生じる場合でも人数を最小化する
+      // 午前3人・午後1人必要、全員AM/PM対応スタッフ4人
+      // → 午前の3人を満たすために3人出勤 → 午後も3人（超過だが許容）
+      // → 4人目は午前が満たされているのでアサインしない（超過最小化）
+      const staff = [
+        makeStaff({ id: 's1', name: 'A', availableSlots: ['morning', 'afternoon'] }),
+        makeStaff({ id: 's2', name: 'B', availableSlots: ['morning', 'afternoon'] }),
+        makeStaff({ id: 's3', name: 'C', availableSlots: ['morning', 'afternoon'] }),
+        makeStaff({ id: 's4', name: 'D', availableSlots: ['morning', 'afternoon'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 3 : slot === 'afternoon' ? 1 : 0),
+        allParkingSpots,
+      })
+
+      // 午前は3人（必要数通り）
+      expect(result.filter((a) => a.timeSlot === 'morning')).toHaveLength(3)
+      // 午後は全時間帯出勤の原則で3人（必要1人を超えるが許容、4人にはならない）
+      expect(result.filter((a) => a.timeSlot === 'afternoon')).toHaveLength(3)
+    })
+  })
+
   describe('複数日・期間全体', () => {
     it('期間内の全日付にアサインが生成される', () => {
       const staff = [

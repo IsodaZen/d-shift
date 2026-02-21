@@ -1,7 +1,6 @@
 // 自動シフト生成アルゴリズム（純関数）
 import { parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
 import type { Staff, PreferredDayOff, ShiftAssignment, TimeSlot } from '../types'
-import { ALL_TIME_SLOTS } from '../types'
 import { assignParking } from './shiftUtils'
 
 interface GenerateAutoShiftParams {
@@ -39,6 +38,9 @@ function getWeeklyCount(staffId: string, date: string, assignments: ShiftAssignm
  *   1. 希望休の日はアサインしない
  *   2. スタッフの出勤可能時間帯のみにアサインする
  *   3. 週上限出勤回数を超えない
+ *   4. 出勤日には利用可能な全時間帯（必要人数>0）にアサインする
+ *   5. 各時間帯の必要人数を超えるアサインをしない
+ *      （ただし制約4により超過が避けられない場合は最小人数で許容）
  *
  * 優先順位: 週アサイン数の少ないスタッフを優先（ベストエフォート）
  */
@@ -52,30 +54,38 @@ export function generateAutoShift({
   const result: ShiftAssignment[] = []
 
   for (const date of periodDates) {
-    for (const slot of ALL_TIME_SLOTS) {
-      const required = getRequiredCount(date, slot)
-      if (required <= 0) continue
+    // 各スロットの残り必要人数
+    const remaining: Record<TimeSlot, number> = {
+      morning: getRequiredCount(date, 'morning'),
+      afternoon: getRequiredCount(date, 'afternoon'),
+      evening: getRequiredCount(date, 'evening'),
+    }
 
-      // 強制制約でフィルタリング
-      const eligible = staff.filter((s) => {
-        // 希望休チェック
-        if (dayOffs.some((d) => d.staffId === s.id && d.date === date)) return false
-        // 出勤可能時間帯チェック
-        if (!s.availableSlots.includes(slot)) return false
-        // 週上限チェック（生成済みアサイン込みでカウント）
-        const weekCount = getWeeklyCount(s.id, date, result)
-        if (weekCount >= s.maxWeeklyShifts) return false
-        return true
-      })
+    // 強制制約でフィルタリング（希望休・週上限）
+    const candidates = staff.filter((s) => {
+      if (dayOffs.some((d) => d.staffId === s.id && d.date === date)) return false
+      const weekCount = getWeeklyCount(s.id, date, result)
+      if (weekCount >= s.maxWeeklyShifts) return false
+      return true
+    })
 
-      // 週アサイン数の少ない順にソート
-      eligible.sort(
-        (a, b) => getWeeklyCount(a.id, date, result) - getWeeklyCount(b.id, date, result),
+    // 週アサイン数の少ない順にソート
+    candidates.sort(
+      (a, b) => getWeeklyCount(a.id, date, result) - getWeeklyCount(b.id, date, result),
+    )
+
+    // 各候補スタッフについて「この日に出勤させるか」を判定
+    for (const s of candidates) {
+      // このスタッフの利用可能スロットのうち、まだ必要数が残っているスロットがあるか（制約5）
+      const hasNeeded = s.availableSlots.some(
+        (slot) => getRequiredCount(date, slot) > 0 && remaining[slot] > 0,
       )
+      if (!hasNeeded) continue // 全スロットが充足済み → スキップ
 
-      // 必要人数分アサイン
-      const toAssign = eligible.slice(0, required)
-      for (const s of toAssign) {
+      // 出勤させる: 必要人数>0かつ対応可能な全スロットにアサイン（制約4）
+      for (const slot of s.availableSlots) {
+        if (getRequiredCount(date, slot) <= 0) continue // 必要人数0のスロットはスキップ
+
         const parkingSpot = s.usesParking
           ? assignParking(date, allParkingSpots, result, s.id)
           : null
@@ -87,6 +97,7 @@ export function generateAutoShift({
           timeSlot: slot,
           parkingSpot,
         })
+        remaining[slot]--
       }
     }
   }
