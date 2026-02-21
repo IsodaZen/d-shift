@@ -57,12 +57,18 @@ Fast-forward through artifact creation - generate everything needed to start imp
       - Apply `context` and `rules` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
-   b. **Continue until all `applyRequires` artifacts are complete**
+   b. **specアーティファクト作成後の品質レビュー**
+
+      `specs/<capability>/spec.md` を作成した場合は毎回、**spec-quality-reviewer** サブエージェントを呼び出して品質を検証する。
+      - 作成した仕様ファイルのパスをエージェントに渡す
+      - CRITICALまたはWARNINGがある場合は仕様を修正してから次のアーティファクトへ進む
+
+   c. **Continue until all `applyRequires` artifacts are complete**
       - After creating each artifact, re-run `openspec status --change "<name>" --json`
       - Check if every artifact ID in `applyRequires` has `status: "done"` in the artifacts array
       - Stop when all `applyRequires` artifacts are done
 
-   c. **If an artifact requires user input** (unclear context):
+   d. **If an artifact requires user input** (unclear context):
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 

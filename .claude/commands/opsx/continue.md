@@ -73,7 +73,15 @@ Continue working on a change by creating the next artifact.
    - This shouldn't happen with a valid schema
    - Show status and suggest checking for issues
 
-4. **After creating an artifact, show progress**
+4. **仕様アーティファクト作成後の品質レビュー**（specアーティファクトのみ）
+
+   `specs/<capability>/spec.md` を作成した場合は、**spec-quality-reviewer** サブエージェントを呼び出して仕様の品質を検証する。
+
+   - 作成した仕様ファイルのパスをエージェントに渡す
+   - レビュー結果にCRITICALまたはWARNINGがある場合は、次のアーティファクト作成に進む前に仕様を修正する
+   - SUGGESTION以下のみであれば、そのまま次に進んでよい
+
+5. **After creating an artifact, show progress**
    ```bash
    openspec status --change "<name>"
    ```

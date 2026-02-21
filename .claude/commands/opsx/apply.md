@@ -75,7 +75,16 @@ Implement tasks from an OpenSpec change.
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-7. **On completion or pause, show status**
+7. **実装品質の自動レビュー**（全タスク完了時またはセッション一時停止前）
+
+   このセッションで実装したファイルを対象に、**impl-quality-reviewer** サブエージェントを呼び出して品質を検証する。
+
+   - 実装したファイルのパス一覧をエージェントに渡す
+   - 仕様ファイルが存在する場合は、そのパスも合わせて渡す（`contextFiles` から取得）
+   - レビュー結果にCRITICALがある場合はアーカイブ前に修正する
+   - WARNINGがある場合は修正を検討し、ユーザーに判断を委ねる
+
+8. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
