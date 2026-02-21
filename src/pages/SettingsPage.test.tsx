@@ -112,20 +112,6 @@ describe('SettingsPage', () => {
       expect(stored?.endDate).toBe('2025-02-28')
     })
 
-    it('クリアボタンを押すとシフト期間が削除される', async () => {
-      // spec: シフト作成期間を登録・変更できる（削除含む）
-      const user = userEvent.setup()
-      localStorage.setItem(
-        'd-shift:shift-period',
-        JSON.stringify({ startDate: '2025-02-03', endDate: '2025-02-28' }),
-      )
-
-      renderSettings()
-      await user.click(screen.getByRole('button', { name: 'シフト期間' }))
-      await user.click(screen.getByRole('button', { name: 'クリア' }))
-
-      expect(localStorage.getItem('d-shift:shift-period')).toBe('null')
-    })
   })
 
   describe('シフト枠タブ', () => {

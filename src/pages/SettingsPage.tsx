@@ -27,7 +27,7 @@ export function SettingsPage() {
   const { parkingConfig, updateSlotCount } = useParkingConfig()
   const { dayOffs, addDayOff, syncDayOffs } = useDayOffs()
   const { staff } = useStaff()
-  const { shiftPeriod, setShiftPeriod, clearShiftPeriod, getPeriodDates, isShiftPeriodSaved } = useShiftPeriod()
+  const { shiftPeriod, setShiftPeriod, getPeriodDates, isShiftPeriodSaved } = useShiftPeriod()
 
   // シフト期間フォーム
   const [periodStart, setPeriodStart] = useState(shiftPeriod.startDate)
@@ -78,12 +78,6 @@ export function SettingsPage() {
 
     setPeriodError('')
     setShiftPeriod({ startDate: periodStart, endDate: periodEnd })
-  }
-
-  const handleClearPeriod = () => {
-    clearShiftPeriod()
-    setPeriodStart('')
-    setPeriodEnd('')
   }
 
   const handleAddDayOff = () => {
@@ -167,18 +161,12 @@ export function SettingsPage() {
               {periodError && (
                 <p className="text-red-500 text-xs">{periodError}</p>
               )}
-              <div className="flex gap-2 pt-1">
+              <div className="pt-1">
                 <button
                   onClick={handleSavePeriod}
-                  className="flex-1 bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-600"
+                  className="w-full bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-600"
                 >
                   保存
-                </button>
-                <button
-                  onClick={handleClearPeriod}
-                  className="px-4 border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm hover:bg-gray-50"
-                >
-                  クリア
                 </button>
               </div>
             </div>
