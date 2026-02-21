@@ -4,7 +4,7 @@ import type { Staff, TimeSlot } from '../types'
 import { TimeSlotBadge } from './TimeSlotBadge'
 import { AssignModal } from './AssignModal'
 import { Toast } from './Toast'
-import { formatDateLabel } from '../utils/dateUtils'
+import { formatDateLabel, getDayType } from '../utils/dateUtils'
 import { getWeeklyAssignmentCount, isAvailableSlot } from '../utils/shiftUtils'
 import type { HelpAlertInfo } from '../hooks/useHelpAlert'
 import { ALL_TIME_SLOTS, TIME_SLOT_LABELS } from '../types'
@@ -124,10 +124,17 @@ export function ShiftTable({
               </th>
               {dates.map((date) => {
                 const shortage = getAssignmentShortage(date)
+                const dayType = getDayType(date)
+                const thClass =
+                  dayType === 'saturday'
+                    ? 'border border-gray-200 px-1 py-1 text-center font-medium min-w-[60px] bg-blue-50 text-blue-700'
+                    : dayType === 'sunday' || dayType === 'holiday'
+                      ? 'border border-gray-200 px-1 py-1 text-center font-medium min-w-[60px] bg-red-50 text-red-700'
+                      : 'border border-gray-200 px-1 py-1 text-center text-gray-600 font-medium min-w-[60px]'
                 return (
                   <th
                     key={date}
-                    className="border border-gray-200 px-1 py-1 text-center text-gray-600 font-medium min-w-[60px]"
+                    className={thClass}
                   >
                     {formatDateLabel(date)}
                     {/* Phase 7: アサイン不足インジケーター */}
