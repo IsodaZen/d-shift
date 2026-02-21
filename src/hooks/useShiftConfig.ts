@@ -4,10 +4,12 @@ import { parseISO, getDay } from 'date-fns'
 import { useLocalStorage } from './useLocalStorage'
 import type { DayCategory, ShiftSlotConfig, TimeSlot } from '../types'
 import { DEFAULT_SHIFT_SLOT_COUNTS } from '../types'
+import { isJapaneseHoliday } from '../utils/dateUtils'
 
 const STORAGE_KEY = 'd-shift:shift-config'
 
 function getDayCategory(date: string): DayCategory {
+  if (isJapaneseHoliday(date)) return 'holiday'
   const day = getDay(parseISO(date)) // 0=日曜, 6=土曜
   if (day === 0) return 'sunday'
   if (day === 6) return 'saturday'

@@ -55,6 +55,41 @@ describe('useShiftConfig', () => {
     })
   })
 
+  describe('getRequiredCount - 祝日デフォルト値', () => {
+    it('未設定の祝日（平日）は午前0を返す', () => {
+      // spec: 未設定の祝日の必要人数はすべて0を返す
+      // 2025-01-01は元日（水曜）
+      const { result } = renderHook(() => useShiftConfig())
+      expect(result.current.getRequiredCount('2025-01-01', 'morning')).toBe(0)
+    })
+
+    it('未設定の祝日（平日）は午後0を返す', () => {
+      const { result } = renderHook(() => useShiftConfig())
+      expect(result.current.getRequiredCount('2025-01-01', 'afternoon')).toBe(0)
+    })
+
+    it('未設定の祝日（平日）は夕方0を返す', () => {
+      const { result } = renderHook(() => useShiftConfig())
+      expect(result.current.getRequiredCount('2025-01-01', 'evening')).toBe(0)
+    })
+
+    it('未設定の祝日（土曜）は午前0を返す（土曜デフォルト2ではなく祝日デフォルト0）', () => {
+      // 2019-11-23は勤労感謝の日（土曜）
+      const { result } = renderHook(() => useShiftConfig())
+      expect(result.current.getRequiredCount('2019-11-23', 'morning')).toBe(0)
+    })
+
+    it('祝日に保存値がある場合は保存値が優先される', () => {
+      const { result } = renderHook(() => useShiftConfig())
+
+      act(() => {
+        result.current.setRequiredCount('2025-01-01', 'morning', 3)
+      })
+
+      expect(result.current.getRequiredCount('2025-01-01', 'morning')).toBe(3)
+    })
+  })
+
   describe('getRequiredCount - 保存値の優先', () => {
     it('設定済みの日付はデフォルト値より保存値が優先される', () => {
       // spec: 設定済みの日付はデフォルト値より保存値が優先される
