@@ -1,4 +1,4 @@
-import { format, startOfWeek, addDays } from 'date-fns'
+import { format, startOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDay, parseISO } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
 export function getWeekDates(weekStart: Date): string[] {
@@ -208,4 +208,28 @@ export function getDayType(dateStr: string): 'weekday' | 'saturday' | 'sunday' |
   if (dow === 0) return 'sunday'
   if (dow === 6) return 'saturday'
   return 'weekday'
+}
+
+/** periodDates から月一覧を取得（YYYY-MM 形式、昇順・重複なし） */
+export function getCalendarMonths(periodDates: string[]): string[] {
+  const months = new Set(periodDates.map((d) => d.slice(0, 7)))
+  return Array.from(months).sort()
+}
+
+/** 指定月のカレンダーグリッド（日曜始まり）を生成する（null = 空セル） */
+export function buildCalendarGrid(yearMonth: string): (string | null)[] {
+  const date = parseISO(yearMonth + '-01')
+  const start = startOfMonth(date)
+  const end = endOfMonth(date)
+  const days = eachDayOfInterval({ start, end }).map((d) => format(d, 'yyyy-MM-dd'))
+
+  const firstDow = getDay(start)
+  const grid: (string | null)[] = Array(firstDow).fill(null)
+  grid.push(...days)
+
+  while (grid.length % 7 !== 0) {
+    grid.push(null)
+  }
+
+  return grid
 }

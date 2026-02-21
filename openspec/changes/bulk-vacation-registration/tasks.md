@@ -2,13 +2,13 @@
 
 ### Phase 1: `syncDayOffs` フック追加（TDD）
 
-- [ ] `src/hooks/useDayOffs.test.ts` に `syncDayOffs` のテストを追加する（Red）
+- [x] `src/hooks/useDayOffs.test.ts` に `syncDayOffs` のテストを追加する（Red）
   - 「date1 を外し date3 を追加した場合、`{ added: 1, removed: 1 }` が返り LocalStorage が更新される」
   - 「空配列を渡すとすべて削除され `{ added: 0, removed: 2 }` が返る」
   - 「変化なしで呼ぶと `{ added: 0, removed: 0 }` が返り LocalStorage は変更されない」
   - 「他スタッフのデータに影響しない」
 
-- [ ] `src/hooks/useDayOffs.ts` に `syncDayOffs` を実装する（Green）
+- [x] `src/hooks/useDayOffs.ts` に `syncDayOffs` を実装する（Green）
   - 引数: `staffId: string, dates: string[]`
   - 戻り値: `{ added: number; removed: number }`
   - `dates` にあるが未登録の日付を追加、登録済みだが `dates` にない日付を削除
@@ -19,7 +19,7 @@
 
 ### Phase 2: カレンダーUIコンポーネント作成（TDD）
 
-- [ ] `src/components/DayOffCalendar.test.tsx` を作成しテストを書く（Red）
+- [x] `src/components/DayOffCalendar.test.tsx` を作成しテストを書く（Red）
   - 「シフト期間内の日付がカレンダーに表示される」
   - 「登録済みの日付が初期選択済み状態で表示される」
   - 「シフト期間外の日付はグレーアウトして選択不可で表示される」
@@ -29,7 +29,7 @@
   - 「前月ボタンは開始月で非活性になる」
   - 「翌月ボタンは終了月で非活性になる」
 
-- [ ] `src/components/DayOffCalendar.tsx` を作成する（Green）
+- [x] `src/components/DayOffCalendar.tsx` を作成する（Green）
   - Props:
     - `periodDates: string[]` — シフト期間内の日付一覧
     - `selectedDates: string[]` — 選択中の日付一覧（外部 state）
@@ -43,7 +43,7 @@
 
 ### Phase 3: 希望休タブUIの更新（TDD）
 
-- [ ] `src/pages/SettingsPage.test.tsx` に希望休タブの新UIテストを追加する（Red）
+- [x] `src/pages/SettingsPage.test.tsx` に希望休タブの新UIテストを追加する（Red）
   - 「`isShiftPeriodSaved === false` の場合は日付入力フィールドが表示される（フォールバック）」
   - 「`isShiftPeriodSaved === true` かつスタッフ未選択の場合はカレンダーが表示されない」
   - 「`isShiftPeriodSaved === true` かつスタッフ選択済みの場合はカレンダーが表示される」
@@ -56,7 +56,7 @@
   - 「希望休のないスタッフはサマリーに表示されない」
   - 「希望休が0件の場合は「登録された希望休はありません」が表示される」
 
-- [ ] `src/pages/SettingsPage.tsx` の希望休タブを更新する（Green）
+- [x] `src/pages/SettingsPage.tsx` の希望休タブを更新する（Green）
   - `isShiftPeriodSaved` を `useShiftPeriod` から取得する
   - `syncDayOffs` を `useDayOffs` から取得する
   - フォールバック: `!isShiftPeriodSaved` の場合は既存の日付入力UIを表示
@@ -75,10 +75,10 @@
 
 ### Phase 4: リファクタリング
 
-- [ ] `DayOffCalendar` コンポーネントをリファクタリングする（Refactor）
-  - カレンダーグリッド生成ロジックを `src/utils/dateUtils.ts` のユーティリティ関数に切り出す（必要に応じて）
+- [x] `DayOffCalendar` コンポーネントをリファクタリングする（Refactor）
+  - カレンダーグリッド生成ロジックを `src/utils/dateUtils.ts` のユーティリティ関数に切り出す（`buildCalendarGrid`, `getCalendarMonths`）
   - Tailwind クラスの重複をまとめる
 
-- [ ] `SettingsPage` の希望休タブロジックをリファクタリングする（Refactor）
-  - サマリー件数計算ロジックを `useDayOffs` フックの返り値（`getDayOffCount(staffId, periodDates)`）に切り出すことを検討する
+- [x] `SettingsPage` の希望休タブロジックをリファクタリングする（Refactor）
+  - `useEffect` を廃止し、スタッフ選択変更ハンドラー（`handleCalendarStaffChange`）に選択状態初期化ロジックを統合
   - 結果メッセージ管理の state をシンプルに保つ
