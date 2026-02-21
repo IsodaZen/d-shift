@@ -65,14 +65,14 @@ React Router を導入してURLベースの画面遷移（SPA）に切り替え�
 
 ### New Capabilities
 
-- `screen-navigation`: React Router（HashRouter）によるURLベースのページ遷移。全ページ共通のヘッダー（AppHeader）を提供する。フロー誘導CTAにより「スタッフ登録 → シフト設定 → 自動アサイン → シフト確認・手動編集」の操作フローをユーザーに示す
+- `screen-navigation`: React Router（BrowserRouter）によるURLベースのページ遷移。全ページ共通のヘッダー（AppHeader）を提供する。フロー誘導CTAにより「スタッフ登録 → シフト設定 → 自動アサイン → シフト確認・手動編集」の操作フローをユーザーに示す
 
 ### Modified Capabilities
 
 - `staff-management`: ボトムタブによるページ切り替えをRoute遷移に変更。フロー誘導CTAを追加
-- `shift-period-config`: URLサブパス（`#/settings/period`）と連動するタブ選択に変更。フロー誘導CTAを追加
-- `shift-slot-config`: URLサブパス（`#/settings/shift`）と連動するタブ選択に変更。フロー誘導CTAを追加
-- `preferred-day-off`: URLサブパス（`#/settings/dayoff`）と連動するタブ選択に変更
+- `shift-period-config`: URLサブパス（`/settings/period`）と連動するタブ選択に変更。フロー誘導CTAを追加
+- `shift-slot-config`: URLサブパス（`/settings/shift`）と連動するタブ選択に変更。フロー誘導CTAを追加
+- `preferred-day-off`: URLサブパス（`/settings/dayoff`）と連動するタブ選択に変更
 - `shift-schedule-view`: ボトムタブによるページ切り替えをRoute遷移に変更
 
 ## Impact
