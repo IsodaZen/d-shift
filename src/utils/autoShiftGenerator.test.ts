@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { generateAutoShift } from './autoShiftGenerator'
-import type { Staff, PreferredDayOff } from '../types'
+import type { Staff, PreferredDayOff, HelpStaff } from '../types'
 
 // --- spec: auto-shift-generation ---
 
@@ -453,6 +453,165 @@ describe('generateAutoShift', () => {
 
       const dates = [...new Set(result.map((a) => a.date))]
       expect(dates.sort()).toEqual(['2025-02-03', '2025-02-04', '2025-02-05'])
+    })
+  })
+
+  // --- spec: auto-shift-generation（ヘルプスタッフ拡張） ---
+  describe('ヘルプスタッフ', () => {
+    const makeHelpStaff = (overrides: Partial<HelpStaff> & { id: string; name: string }): HelpStaff => ({
+      availableSlots: ['morning', 'afternoon', 'evening'],
+      availableDates: [],
+      usesParking: false,
+      ...overrides,
+    })
+
+    it('通常スタッフで充足可能な場合、ヘルプスタッフはアサインされない', () => {
+      const staff = [
+        makeStaff({ id: 's1', name: '山田' }),
+        makeStaff({ id: 's2', name: '鈴木' }),
+      ]
+      const helpStaff = [
+        makeHelpStaff({ id: 'hs1', name: 'ヘルプA', availableDates: ['2025-02-03'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 2 : 0),
+        allParkingSpots,
+        helpStaff,
+      })
+
+      // 通常スタッフ2人で充足 → ヘルプスタッフはアサインされない
+      expect(result.filter((a) => a.staffId === 'hs1')).toHaveLength(0)
+    })
+
+    it('通常スタッフだけでは不足する場合、ヘルプスタッフがアサインされる', () => {
+      const staff = [
+        makeStaff({ id: 's1', name: '山田', availableSlots: ['morning'] }),
+      ]
+      const helpStaff = [
+        makeHelpStaff({ id: 'hs1', name: 'ヘルプA', availableSlots: ['morning'], availableDates: ['2025-02-03'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 2 : 0),
+        allParkingSpots,
+        helpStaff,
+      })
+
+      // 通常スタッフ1人 + ヘルプスタッフ1人 = 2人
+      expect(result.filter((a) => a.timeSlot === 'morning')).toHaveLength(2)
+      expect(result.filter((a) => a.staffId === 'hs1')).toHaveLength(1)
+    })
+
+    it('ヘルプスタッフは稼働可能日付のみにアサインされる', () => {
+      const staff: Staff[] = []
+      const helpStaff = [
+        makeHelpStaff({ id: 'hs1', name: 'ヘルプA', availableSlots: ['morning'], availableDates: ['2025-02-03'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03', '2025-02-04'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 1 : 0),
+        allParkingSpots,
+        helpStaff,
+      })
+
+      // 2/3にはアサインされるが、2/4にはアサインされない
+      expect(result.filter((a) => a.staffId === 'hs1' && a.date === '2025-02-03')).toHaveLength(1)
+      expect(result.filter((a) => a.staffId === 'hs1' && a.date === '2025-02-04')).toHaveLength(0)
+    })
+
+    it('ヘルプスタッフは出勤可能時間帯のみにアサインされる', () => {
+      const staff: Staff[] = []
+      const helpStaff = [
+        makeHelpStaff({ id: 'hs1', name: 'ヘルプA', availableSlots: ['morning'], availableDates: ['2025-02-03'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: () => 1,
+        allParkingSpots,
+        helpStaff,
+      })
+
+      // 午前のみにアサイン（午後・夕方にはアサインされない）
+      expect(result.filter((a) => a.staffId === 'hs1' && a.timeSlot === 'morning')).toHaveLength(1)
+      expect(result.filter((a) => a.staffId === 'hs1' && a.timeSlot === 'afternoon')).toHaveLength(0)
+      expect(result.filter((a) => a.staffId === 'hs1' && a.timeSlot === 'evening')).toHaveLength(0)
+    })
+
+    it('ヘルプスタッフは駐車場制約を満たす', () => {
+      const staff: Staff[] = []
+      const helpStaff = [
+        makeHelpStaff({ id: 'hs1', name: 'ヘルプA', availableSlots: ['morning'], availableDates: ['2025-02-03'], usesParking: true }),
+        makeHelpStaff({ id: 'hs2', name: 'ヘルプB', availableSlots: ['morning'], availableDates: ['2025-02-03'], usesParking: true }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 2 : 0),
+        allParkingSpots: ['A1'], // 駐車場1枠のみ
+        helpStaff,
+      })
+
+      // 駐車場1枠のみ → ヘルプスタッフ1人だけアサイン
+      expect(result).toHaveLength(1)
+      expect(result[0].parkingSpot).toBe('A1')
+    })
+
+    it('ヘルプスタッフも出勤日には全時間帯にアサインされる', () => {
+      const staff: Staff[] = []
+      const helpStaff = [
+        makeHelpStaff({ id: 'hs1', name: 'ヘルプA', availableSlots: ['morning', 'afternoon'], availableDates: ['2025-02-03'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 1 : slot === 'afternoon' ? 1 : 0),
+        allParkingSpots,
+        helpStaff,
+      })
+
+      // 午前・午後の両方にアサイン
+      expect(result.filter((a) => a.staffId === 'hs1' && a.timeSlot === 'morning')).toHaveLength(1)
+      expect(result.filter((a) => a.staffId === 'hs1' && a.timeSlot === 'afternoon')).toHaveLength(1)
+    })
+
+    it('複数ヘルプスタッフがいる場合、アサイン数の少ないヘルプスタッフが優先される', () => {
+      const staff: Staff[] = []
+      const helpStaff = [
+        makeHelpStaff({ id: 'hs1', name: 'ヘルプA', availableSlots: ['morning'], availableDates: ['2025-02-03', '2025-02-04'] }),
+        makeHelpStaff({ id: 'hs2', name: 'ヘルプB', availableSlots: ['morning'], availableDates: ['2025-02-03', '2025-02-04'] }),
+      ]
+
+      const result = generateAutoShift({
+        periodDates: ['2025-02-03', '2025-02-04'],
+        staff,
+        dayOffs: [],
+        getRequiredCount: (_, slot) => (slot === 'morning' ? 1 : 0),
+        allParkingSpots,
+        helpStaff,
+      })
+
+      // 2日間で1人ずつ必要 → 均等割り（各1回ずつ）
+      const hs1Count = result.filter((a) => a.staffId === 'hs1').length
+      const hs2Count = result.filter((a) => a.staffId === 'hs2').length
+      expect(hs1Count).toBe(1)
+      expect(hs2Count).toBe(1)
     })
   })
 })

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useHelpAlert } from './useHelpAlert'
-import type { Staff, ShiftAssignment, PreferredDayOff, ShiftSlotConfig } from '../types'
+import type { Staff, ShiftAssignment, PreferredDayOff, ShiftSlotConfig, HelpStaff } from '../types'
 
 // --- spec: help-staff-alert ---
 
@@ -127,5 +127,90 @@ describe('useHelpAlert', () => {
     // 7日午後: s1は出勤可能 → アサインなしだが s1が出勤可能なので不足はある
     const alertDates = result.current.map((a) => `${a.date}-${a.timeSlot}`)
     expect(alertDates).toContain('2025-01-06-morning')
+  })
+
+  // --- spec: help-staff-alert（ヘルプスタッフ考慮） ---
+  describe('ヘルプスタッフ考慮', () => {
+    const makeHelpStaff = (
+      id: string,
+      availableSlots: HelpStaff['availableSlots'],
+      availableDates: string[],
+    ): HelpStaff => ({
+      id,
+      name: `ヘルプ${id}`,
+      availableSlots,
+      availableDates,
+      usesParking: false,
+    })
+
+    it('稼働可能なヘルプスタッフがいる場合、不足人数から差し引かれる', () => {
+      // 通常スタッフ1人（希望休で不在）、必要2人、ヘルプスタッフ1人稼働可能
+      const configs: ShiftSlotConfig[] = [makeConfig('2025-01-06', 'morning', 2)]
+      const helpStaff = [makeHelpStaff('hs1', ['morning'], ['2025-01-06'])]
+      const dayOffs: PreferredDayOff[] = [
+        { id: 'd1', staffId: 's1', date: '2025-01-06' },
+        { id: 'd2', staffId: 's2', date: '2025-01-06' },
+      ]
+
+      const { result } = renderHook(() =>
+        useHelpAlert(dates, staff, [], dayOffs, configs, helpStaff),
+      )
+
+      // 通常スタッフ出勤可能: s3の1人、ヘルプスタッフ: hs1の1人 → 合計2人 = 必要2人 → 不足0
+      expect(result.current).toHaveLength(0)
+    })
+
+    it('ヘルプスタッフだけで不足を補える場合、アラートは表示されない', () => {
+      // 通常スタッフ全員希望休、ヘルプスタッフが不足を完全にカバー
+      const singleStaff = [makeStaff('s1', ['morning'])]
+      const configs: ShiftSlotConfig[] = [makeConfig('2025-01-06', 'morning', 1)]
+      const dayOffs: PreferredDayOff[] = [
+        { id: 'd1', staffId: 's1', date: '2025-01-06' },
+      ]
+      const helpStaff = [makeHelpStaff('hs1', ['morning'], ['2025-01-06'])]
+
+      const { result } = renderHook(() =>
+        useHelpAlert(dates, singleStaff, [], dayOffs, configs, helpStaff),
+      )
+
+      expect(result.current).toHaveLength(0)
+    })
+
+    it('ヘルプスタッフでも不足する場合、残りの不足人数がアラートに表示される', () => {
+      // 通常スタッフ全員希望休、必要3人、ヘルプスタッフ1人
+      const configs: ShiftSlotConfig[] = [makeConfig('2025-01-06', 'morning', 3)]
+      const dayOffs: PreferredDayOff[] = [
+        { id: 'd1', staffId: 's1', date: '2025-01-06' },
+        { id: 'd2', staffId: 's2', date: '2025-01-06' },
+        { id: 'd3', staffId: 's3', date: '2025-01-06' },
+      ]
+      const helpStaff = [makeHelpStaff('hs1', ['morning'], ['2025-01-06'])]
+
+      const { result } = renderHook(() =>
+        useHelpAlert(dates, staff, [], dayOffs, configs, helpStaff),
+      )
+
+      // 通常0人 + ヘルプ1人 = 1人、必要3人 → 不足2
+      expect(result.current).toHaveLength(1)
+      expect(result.current[0].shortage).toBe(2)
+    })
+
+    it('稼働可能日付に含まれないヘルプスタッフはカウントされない', () => {
+      // ヘルプスタッフのavailableDatesに日付が含まれない
+      const configs: ShiftSlotConfig[] = [makeConfig('2025-01-06', 'morning', 2)]
+      const dayOffs: PreferredDayOff[] = [
+        { id: 'd1', staffId: 's1', date: '2025-01-06' },
+        { id: 'd2', staffId: 's2', date: '2025-01-06' },
+      ]
+      const helpStaff = [makeHelpStaff('hs1', ['morning'], ['2025-01-07'])] // 別の日のみ
+
+      const { result } = renderHook(() =>
+        useHelpAlert(dates, staff, [], dayOffs, configs, helpStaff),
+      )
+
+      // ヘルプスタッフは1/7のみ稼働可能、1/6は対象外 → 通常1人のみ、不足1
+      expect(result.current).toHaveLength(1)
+      expect(result.current[0].shortage).toBe(1)
+    })
   })
 })

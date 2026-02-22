@@ -382,4 +382,125 @@ describe('SettingsPage', () => {
       expect(screen.getByText('登録された希望休はありません')).toBeInTheDocument()
     })
   })
+
+  describe('ヘルプスタッフタブ', () => {
+    const SHIFT_PERIOD = JSON.stringify({ startDate: '2025-02-01', endDate: '2025-02-10' })
+
+    it('/settings/help-staff でヘルプスタッフタブが表示される', () => {
+      // spec: help-staff-management（ヘルプスタッフタブ）
+      renderSettings('/settings/help-staff')
+      expect(screen.getByText('ヘルプスタッフ一覧')).toBeInTheDocument()
+    })
+
+    it('ヘルプスタッフが未登録の場合は空メッセージが表示される', () => {
+      renderSettings('/settings/help-staff')
+      expect(screen.getByText('ヘルプスタッフが登録されていません')).toBeInTheDocument()
+    })
+
+    it('ヘルプスタッフ一覧が表示される', () => {
+      localStorage.setItem(
+        'd-shift:help-staff',
+        JSON.stringify([
+          { id: 'hs-1', name: '田中ヘルプ', availableSlots: ['morning'], availableDates: [], usesParking: false },
+        ]),
+      )
+      renderSettings('/settings/help-staff')
+      expect(screen.getByText('田中ヘルプ')).toBeInTheDocument()
+    })
+
+    it('ヘルプスタッフを追加できる', async () => {
+      const user = userEvent.setup()
+      renderSettings('/settings/help-staff')
+
+      // 追加ボタンを押してフォームを表示
+      await user.click(screen.getByRole('button', { name: '追加' }))
+
+      // フォームに入力
+      await user.type(screen.getByPlaceholderText('田中 太郎'), '新規ヘルプ')
+      await user.click(screen.getByRole('button', { name: '保存' }))
+
+      // 一覧に追加されている
+      expect(screen.getByText('新規ヘルプ')).toBeInTheDocument()
+    })
+
+    it('ヘルプスタッフを編集できる', async () => {
+      const user = userEvent.setup()
+      localStorage.setItem(
+        'd-shift:help-staff',
+        JSON.stringify([
+          { id: 'hs-1', name: '田中ヘルプ', availableSlots: ['morning', 'afternoon', 'evening'], availableDates: [], usesParking: false },
+        ]),
+      )
+      renderSettings('/settings/help-staff')
+
+      // 編集ボタンを押す
+      await user.click(screen.getByRole('button', { name: '編集' }))
+
+      // 名前を変更
+      const nameInput = screen.getByPlaceholderText('田中 太郎') as HTMLInputElement
+      await user.clear(nameInput)
+      await user.type(nameInput, '鈴木ヘルプ')
+      await user.click(screen.getByRole('button', { name: '保存' }))
+
+      expect(screen.getByText('鈴木ヘルプ')).toBeInTheDocument()
+      expect(screen.queryByText('田中ヘルプ')).not.toBeInTheDocument()
+    })
+
+    it('ヘルプスタッフを削除できる', async () => {
+      const user = userEvent.setup()
+      localStorage.setItem(
+        'd-shift:help-staff',
+        JSON.stringify([
+          { id: 'hs-1', name: '田中ヘルプ', availableSlots: ['morning'], availableDates: [], usesParking: false },
+        ]),
+      )
+      renderSettings('/settings/help-staff')
+
+      await user.click(screen.getByRole('button', { name: '削除' }))
+
+      expect(screen.queryByText('田中ヘルプ')).not.toBeInTheDocument()
+      expect(screen.getByText('ヘルプスタッフが登録されていません')).toBeInTheDocument()
+    })
+
+    it('スタッフ選択後にカレンダーで稼働可能日付を設定できる', async () => {
+      const user = userEvent.setup()
+      localStorage.setItem('d-shift:shift-period', SHIFT_PERIOD)
+      localStorage.setItem(
+        'd-shift:help-staff',
+        JSON.stringify([
+          { id: 'hs-1', name: '田中ヘルプ', availableSlots: ['morning'], availableDates: [], usesParking: false },
+        ]),
+      )
+      renderSettings('/settings/help-staff')
+
+      // 稼働日設定ボタンを押す
+      await user.click(screen.getByRole('button', { name: '稼働日設定' }))
+
+      // カレンダーが表示される
+      expect(screen.getByText('2025年2月')).toBeInTheDocument()
+
+      // 日付を選択
+      await user.click(screen.getByRole('button', { name: /^3$/ }))
+      await user.click(screen.getByRole('button', { name: /^5$/ }))
+
+      // 保存
+      await user.click(screen.getByRole('button', { name: '保存' }))
+
+      // カレンダーが閉じて一覧に戻る
+      const stored = JSON.parse(localStorage.getItem('d-shift:help-staff') ?? '[]')
+      expect(stored[0].availableDates).toEqual(['2025-02-03', '2025-02-05'])
+    })
+
+    it('シフト期間未設定の場合は稼働日設定ボタンが表示されない', () => {
+      localStorage.setItem(
+        'd-shift:help-staff',
+        JSON.stringify([
+          { id: 'hs-1', name: '田中ヘルプ', availableSlots: ['morning'], availableDates: [], usesParking: false },
+        ]),
+      )
+      renderSettings('/settings/help-staff')
+
+      expect(screen.queryByRole('button', { name: '稼働日設定' })).not.toBeInTheDocument()
+    })
+  })
 })

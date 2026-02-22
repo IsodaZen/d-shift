@@ -89,6 +89,7 @@ React Router（BrowserRouter）を導入してURLベースのSPAページ遷移�
 | シフト枠 | `/settings/shift` |
 | 希望休 | `/settings/dayoff` |
 | 駐車場 | `/settings/parking` |
+| ヘルプスタッフ | `/settings/help-staff` |
 
 #### Scenario: URLで指定したタブが開く
 - **WHEN** ユーザーが `/settings/shift` にアクセスする

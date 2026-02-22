@@ -1,6 +1,6 @@
 // タスク10.1: useHelpAlert フック
 import { useMemo } from 'react'
-import type { ShiftAssignment, PreferredDayOff, ShiftSlotConfig, Staff, TimeSlot } from '../types'
+import type { ShiftAssignment, PreferredDayOff, ShiftSlotConfig, Staff, TimeSlot, HelpStaff } from '../types'
 import { ALL_TIME_SLOTS } from '../types'
 
 export interface HelpAlertInfo {
@@ -17,6 +17,7 @@ export function useHelpAlert(
   assignments: ShiftAssignment[],
   dayOffs: PreferredDayOff[],
   configs: ShiftSlotConfig[],
+  helpStaff: HelpStaff[] = [],
 ): HelpAlertInfo[] {
   return useMemo(() => {
     const alerts: HelpAlertInfo[] = []
@@ -33,14 +34,22 @@ export function useHelpAlert(
         ).length
 
         // 希望休で休む予定のスタッフは除外して、出勤可能人数を計算
-        const availableStaff = staff.filter(
+        const availableRegularStaff = staff.filter(
           (s) =>
             s.availableSlots.includes(timeSlot) &&
             !dayOffs.some((d) => d.staffId === s.id && d.date === date),
         )
 
-        // 不足判定: 希望休・出勤不可時間帯を除いた「出勤可能人数」が必要人数を下回るかで判定
-        const shortage = requiredCount - availableStaff.length
+        // 稼働可能なヘルプスタッフを計算（稼働可能日付 AND 出勤可能時間帯）
+        const availableHelpStaff = helpStaff.filter(
+          (hs) =>
+            hs.availableDates.includes(date) &&
+            hs.availableSlots.includes(timeSlot),
+        )
+
+        // 不足判定: 通常スタッフ + ヘルプスタッフの合計が必要人数を下回るかで判定
+        const totalAvailable = availableRegularStaff.length + availableHelpStaff.length
+        const shortage = requiredCount - totalAvailable
 
         if (shortage > 0) {
           alerts.push({ date, timeSlot, requiredCount, assignedCount, shortage })
@@ -49,5 +58,5 @@ export function useHelpAlert(
     }
 
     return alerts
-  }, [dates, staff, assignments, dayOffs, configs])
+  }, [dates, staff, assignments, dayOffs, configs, helpStaff])
 }
