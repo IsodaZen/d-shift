@@ -64,7 +64,7 @@
   - ヘルプスタッフ一覧 + 追加/編集/削除UI
   - カレンダーUIで稼働可能日付を設定
 
-- [ ] `openspec/specs/screen-navigation/spec.md` のタブ一覧に `help-staff` を追記する
+- [x] `openspec/specs/screen-navigation/spec.md` のタブ一覧に `help-staff` を追記する
 
 ---
 
@@ -111,8 +111,8 @@
 
 ### Phase 8: リファクタリング
 
-- [ ] ヘルプスタッフ関連コンポーネントをリファクタリングする（Refactor）
+- [x] ヘルプスタッフ関連コンポーネントをリファクタリングする（Refactor）
   - カレンダーUIの共通ロジックを `DayOffCalendar` と共有検討
   - Tailwindクラスの重複をまとめる
 
-- [ ] 全テストが通ることを確認する
+- [x] 全テストが通ることを確認する
