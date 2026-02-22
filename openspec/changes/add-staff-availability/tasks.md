@@ -89,13 +89,13 @@
 
 ### Phase 6: ヘルプスタッフアラートの改善（TDD）
 
-- [ ] `src/hooks/useHelpAlert.test.ts` にヘルプスタッフ考慮テストを追加する（Red）
+- [x] `src/hooks/useHelpAlert.test.ts` にヘルプスタッフ考慮テストを追加する（Red）
   - 「稼働可能なヘルプスタッフがいる場合、不足人数から差し引かれる」
   - 「ヘルプスタッフだけで不足を補える場合、アラートは表示されない」
   - 「ヘルプスタッフでも不足する場合、残りの不足人数がアラートに表示される」
   - 「稼働可能日付に含まれないヘルプスタッフはカウントされない」
 
-- [ ] `src/hooks/useHelpAlert.ts` を拡張する（Green）
+- [x] `src/hooks/useHelpAlert.ts` を拡張する（Green）
   - `useHelpStaff` からヘルプスタッフを取得
   - 不足判定に稼働可能なヘルプスタッフ数を加算して再計算
 
