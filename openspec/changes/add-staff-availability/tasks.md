@@ -103,7 +103,7 @@
 
 ### Phase 7: ShiftPageへの統合（TDD）
 
-- [ ] `src/pages/ShiftPage.tsx` の自動生成呼び出しにヘルプスタッフデータを追加する
+- [x] `src/pages/ShiftPage.tsx` の自動生成呼び出しにヘルプスタッフデータを追加する
   - `useHelpStaff` からヘルプスタッフを取得
   - `generateAutoShift` にヘルプスタッフを渡す
 

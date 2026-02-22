@@ -11,6 +11,7 @@ import { useShiftConfig } from '../hooks/useShiftConfig'
 import { useParkingConfig } from '../hooks/useParkingConfig'
 import { useHelpAlert } from '../hooks/useHelpAlert'
 import { useShiftPeriod } from '../hooks/useShiftPeriod'
+import { useHelpStaff } from '../hooks/useHelpStaff'
 import { getWeekDates, getDefaultWeekStart } from '../utils/dateUtils'
 import { generateAutoShift } from '../utils/autoShiftGenerator'
 import { ALL_TIME_SLOTS, TIME_SLOT_LABELS, type TimeSlot } from '../types'
@@ -40,9 +41,10 @@ export function ShiftPage() {
     useAssignments(getAllSpots)
   const { dayOffs } = useDayOffs()
   const { configs, getRequiredCount } = useShiftConfig()
+  const { helpStaff } = useHelpStaff()
 
   const dates = getWeekDates(weekStart)
-  const helpAlerts = useHelpAlert(dates, staff, assignments, dayOffs, configs)
+  const helpAlerts = useHelpAlert(dates, staff, assignments, dayOffs, configs, helpStaff)
 
   const periodDates = getPeriodDates()
 
@@ -65,6 +67,7 @@ export function ShiftPage() {
       dayOffs,
       getRequiredCount,
       allParkingSpots: getAllSpots(),
+      helpStaff,
     })
     bulkSetAssignments(newAssignments, periodDates)
     setShowConfirm(false)
