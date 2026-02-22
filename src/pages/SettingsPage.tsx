@@ -1,4 +1,4 @@
-// タスク5.1〜5.4, 6.1〜6.4: SettingsPage（シフト期間・シフト枠・駐車場・希望休設定）
+// タスク5.1〜5.4, 6.1〜6.4: SettingsPage（シフト期間・シフト枠・駐車場・希望休設定・ヘルプスタッフ）
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useShiftConfig } from '../hooks/useShiftConfig'
@@ -6,15 +6,19 @@ import { useParkingConfig } from '../hooks/useParkingConfig'
 import { useDayOffs } from '../hooks/useDayOffs'
 import { useStaff } from '../hooks/useStaff'
 import { useShiftPeriod } from '../hooks/useShiftPeriod'
+import { useHelpStaff } from '../hooks/useHelpStaff'
 import { ALL_TIME_SLOTS, TIME_SLOT_LABELS } from '../types'
+import type { HelpStaff } from '../types'
 import { NumberStepper } from '../components/NumberStepper'
 import { DayOffCalendar } from '../components/DayOffCalendar'
+import { HelpStaffForm } from '../components/HelpStaffForm'
+import { HelpStaffAvailabilityCalendar } from '../components/HelpStaffAvailabilityCalendar'
 import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
-type Tab = 'period' | 'shift' | 'dayoff' | 'parking'
+type Tab = 'period' | 'shift' | 'dayoff' | 'parking' | 'help-staff'
 
-const VALID_TABS: Tab[] = ['period', 'shift', 'dayoff', 'parking']
+const VALID_TABS: Tab[] = ['period', 'shift', 'dayoff', 'parking', 'help-staff']
 
 export function SettingsPage() {
   const { tab: tabParam } = useParams<{ tab?: string }>()
@@ -28,6 +32,12 @@ export function SettingsPage() {
   const { dayOffs, addDayOff, syncDayOffs } = useDayOffs()
   const { staff } = useStaff()
   const { shiftPeriod, setShiftPeriod, getPeriodDates, isShiftPeriodSaved } = useShiftPeriod()
+  const { helpStaff, addHelpStaff, updateHelpStaff, deleteHelpStaff, updateAvailableDates } = useHelpStaff()
+
+  // ヘルプスタッフ管理
+  const [helpStaffMode, setHelpStaffMode] = useState<'list' | 'add' | 'edit' | 'calendar'>('list')
+  const [editingHelpStaffId, setEditingHelpStaffId] = useState<string | null>(null)
+  const [calendarHelpStaffId, setCalendarHelpStaffId] = useState<string | null>(null)
 
   // シフト期間フォーム
   const [periodStart, setPeriodStart] = useState(shiftPeriod.startDate)
@@ -117,6 +127,7 @@ export function SettingsPage() {
             { id: 'shift', label: 'シフト枠' },
             { id: 'dayoff', label: '希望休' },
             { id: 'parking', label: '駐車場' },
+            { id: 'help-staff', label: 'ヘルプスタッフ' },
           ] as { id: Tab; label: string }[]
         ).map((t) => (
           <button
@@ -367,6 +378,128 @@ export function SettingsPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ヘルプスタッフ管理 */}
+        {activeTab === 'help-staff' && (
+          <div>
+            {helpStaffMode === 'list' && (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-medium text-gray-700">ヘルプスタッフ一覧</p>
+                  <button
+                    onClick={() => setHelpStaffMode('add')}
+                    className="px-3 py-1.5 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600"
+                  >
+                    追加
+                  </button>
+                </div>
+
+                {helpStaff.length === 0 ? (
+                  <p className="text-center text-gray-400 text-sm py-6">ヘルプスタッフが登録されていません</p>
+                ) : (
+                  <div className="space-y-2">
+                    {helpStaff.map((hs) => (
+                      <div
+                        key={hs.id}
+                        className="bg-white border border-gray-200 rounded-xl px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-800">{hs.name}</span>
+                          <div className="flex gap-2">
+                            {isShiftPeriodSaved && (
+                              <button
+                                onClick={() => {
+                                  setCalendarHelpStaffId(hs.id)
+                                  setHelpStaffMode('calendar')
+                                }}
+                                className="text-xs text-indigo-600 hover:text-indigo-800"
+                              >
+                                稼働日設定
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                setEditingHelpStaffId(hs.id)
+                                setHelpStaffMode('edit')
+                              }}
+                              className="text-xs text-indigo-600 hover:text-indigo-800"
+                            >
+                              編集
+                            </button>
+                            <button
+                              onClick={() => deleteHelpStaff(hs.id)}
+                              className="text-xs text-red-500 hover:text-red-700"
+                            >
+                              削除
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {helpStaffMode === 'add' && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3">ヘルプスタッフを追加</p>
+                <HelpStaffForm
+                  onSubmit={(data) => {
+                    addHelpStaff({ ...data, availableDates: [] })
+                    setHelpStaffMode('list')
+                  }}
+                  onCancel={() => setHelpStaffMode('list')}
+                />
+              </div>
+            )}
+
+            {helpStaffMode === 'edit' && editingHelpStaffId && (() => {
+              const target = helpStaff.find((hs) => hs.id === editingHelpStaffId)
+              if (!target) return null
+              return (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-3">ヘルプスタッフを編集</p>
+                  <HelpStaffForm
+                    initialData={{
+                      name: target.name,
+                      availableSlots: target.availableSlots,
+                      usesParking: target.usesParking,
+                    }}
+                    onSubmit={(data) => {
+                      updateHelpStaff(editingHelpStaffId, data)
+                      setEditingHelpStaffId(null)
+                      setHelpStaffMode('list')
+                    }}
+                    onCancel={() => {
+                      setEditingHelpStaffId(null)
+                      setHelpStaffMode('list')
+                    }}
+                  />
+                </div>
+              )
+            })()}
+
+            {helpStaffMode === 'calendar' && calendarHelpStaffId && (() => {
+              const target = helpStaff.find((hs) => hs.id === calendarHelpStaffId)
+              if (!target) return null
+              return (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-3">{target.name} の稼働可能日付</p>
+                  <HelpStaffAvailabilityCalendar
+                    periodDates={periodDates}
+                    selectedDates={target.availableDates}
+                    onSave={(dates) => {
+                      updateAvailableDates(calendarHelpStaffId, dates)
+                      setCalendarHelpStaffId(null)
+                      setHelpStaffMode('list')
+                    }}
+                  />
+                </div>
+              )
+            })()}
           </div>
         )}
       </div>

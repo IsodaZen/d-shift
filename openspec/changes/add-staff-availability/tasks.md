@@ -51,7 +51,7 @@
 
 ### Phase 4: 設定ページへのヘルプスタッフタブ追加（TDD）
 
-- [ ] `src/pages/SettingsPage.test.tsx` にヘルプスタッフタブのテストを追加する（Red）
+- [x] `src/pages/SettingsPage.test.tsx` にヘルプスタッフタブのテストを追加する（Red）
   - 「`/settings/help-staff` でヘルプスタッフタブが表示される」
   - 「ヘルプスタッフ一覧が表示される」
   - 「ヘルプスタッフを追加できる」
@@ -59,7 +59,7 @@
   - 「ヘルプスタッフを削除できる」
   - 「スタッフ選択後にカレンダーで稼働可能日付を設定できる」
 
-- [ ] `src/pages/SettingsPage.tsx` にヘルプスタッフタブを追加する（Green）
+- [x] `src/pages/SettingsPage.tsx` にヘルプスタッフタブを追加する（Green）
   - タブ定義に `help-staff` を追加（URL: `/settings/help-staff`, ラベル: ヘルプスタッフ）
   - ヘルプスタッフ一覧 + 追加/編集/削除UI
   - カレンダーUIで稼働可能日付を設定
