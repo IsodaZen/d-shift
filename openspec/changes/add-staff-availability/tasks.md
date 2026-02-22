@@ -2,17 +2,17 @@
 
 ### Phase 1: 型定義とヘルプスタッフフック（TDD）
 
-- [ ] `src/types/index.ts` に `HelpStaff` 型を追加する
+- [x] `src/types/index.ts` に `HelpStaff` 型を追加する
   - `id: string`, `name: string`, `availableSlots: TimeSlot[]`, `availableDates: string[]`, `usesParking: boolean`
 
-- [ ] `src/hooks/useHelpStaff.test.ts` を作成しテストを書く（Red）
+- [x] `src/hooks/useHelpStaff.test.ts` を作成しテストを書く（Red）
   - 「初期状態で空配列が返る」
   - 「ヘルプスタッフを追加するとLocalStorageに保存される」
   - 「ヘルプスタッフを編集するとLocalStorageが更新される」
   - 「ヘルプスタッフを削除するとLocalStorageから削除される」
   - 「稼働可能日付を更新できる」
 
-- [ ] `src/hooks/useHelpStaff.ts` を作成し実装する（Green）
+- [x] `src/hooks/useHelpStaff.ts` を作成し実装する（Green）
   - `useLocalStorage` を活用して `helpStaff` を管理
   - `addHelpStaff`, `updateHelpStaff`, `deleteHelpStaff`, `updateAvailableDates` 関数を提供
 
@@ -20,14 +20,14 @@
 
 ### Phase 2: ヘルプスタッフフォームコンポーネント（TDD）
 
-- [ ] `src/components/HelpStaffForm.test.tsx` を作成しテストを書く（Red）
+- [x] `src/components/HelpStaffForm.test.tsx` を作成しテストを書く（Red）
   - 「名前を入力して登録できる」
   - 「名前が空の場合はバリデーションエラーが表示される」
   - 「出勤可能時間帯を選択できる」
   - 「駐車場利用有無を設定できる」
   - 「編集モードで既存値が初期表示される」
 
-- [ ] `src/components/HelpStaffForm.tsx` を作成し実装する（Green）
+- [x] `src/components/HelpStaffForm.tsx` を作成し実装する（Green）
   - Props: `onSubmit`, `initialData?`（編集時）
   - 氏名入力、出勤可能時間帯のチェックボックス、駐車場利用トグル
 

@@ -61,6 +61,14 @@ export const DEFAULT_SHIFT_SLOT_COUNTS: Record<DayCategory, Record<TimeSlot, num
   holiday: { morning: 0, afternoon: 0, evening: 0 },
 }
 
+export interface HelpStaff {
+  id: string
+  name: string
+  availableSlots: TimeSlot[]
+  availableDates: string[] // YYYY-MM-DD
+  usesParking: boolean
+}
+
 export const DEFAULT_PARKING_CONFIG: ParkingConfig = {
   slots: [
     { type: 'A', count: 4 },
