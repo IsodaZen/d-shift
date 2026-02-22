@@ -124,6 +124,7 @@ export function ShiftPage() {
         assignments={assignments}
         dayOffs={dayOffs}
         helpAlerts={helpAlerts}
+        helpStaff={helpStaff}
         onAddAssignment={addAssignment}
         onRemoveAssignment={removeAssignment}
         getRequiredCount={getRequiredCount}

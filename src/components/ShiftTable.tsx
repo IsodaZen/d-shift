@@ -1,6 +1,6 @@
 // タスク8.2, 8.3, 8.5〜8.7, 8.8: シフト表テーブルコンポーネント
 import { useState, useCallback } from 'react'
-import type { Staff, TimeSlot } from '../types'
+import type { Staff, HelpStaff, TimeSlot } from '../types'
 import { TimeSlotBadge } from './TimeSlotBadge'
 import { AssignModal } from './AssignModal'
 import { Toast } from './Toast'
@@ -16,6 +16,7 @@ interface ShiftTableProps {
   assignments: ShiftAssignment[]
   dayOffs: PreferredDayOff[]
   helpAlerts: HelpAlertInfo[]
+  helpStaff?: HelpStaff[]
   onAddAssignment: (staffId: string, date: string, timeSlot: TimeSlot, usesParking: boolean) => void
   onRemoveAssignment: (staffId: string, date: string, timeSlot: TimeSlot) => void
   getRequiredCount?: (date: string, slot: TimeSlot) => number
@@ -24,6 +25,7 @@ interface ShiftTableProps {
 interface ModalState {
   staffId: string
   date: string
+  isHelpStaff?: boolean
 }
 
 export function ShiftTable({
@@ -32,6 +34,7 @@ export function ShiftTable({
   assignments,
   dayOffs,
   helpAlerts,
+  helpStaff = [],
   onAddAssignment,
   onRemoveAssignment,
   getRequiredCount,
@@ -95,6 +98,30 @@ export function ShiftTable({
     [modal, staff, assignments, getAssignedSlots, onAddAssignment, onRemoveAssignment],
   )
 
+  const handleToggleHelpSlot = useCallback(
+    (slot: TimeSlot) => {
+      if (!modal) return
+      const { staffId, date } = modal
+      const hs = helpStaff.find((x) => x.id === staffId)
+      if (!hs) return
+
+      const alreadyAssigned = getAssignedSlots(staffId, date).includes(slot)
+      if (alreadyAssigned) {
+        onRemoveAssignment(staffId, date, slot)
+        return
+      }
+
+      // ヘルプスタッフには週上限チェックなし
+      // 出勤不可時間帯は警告のみ（アサインは許可）
+      if (!hs.availableSlots.includes(slot)) {
+        setToast(`「${TIME_SLOT_LABELS[slot]}」は出勤不可の時間帯です`)
+      }
+
+      onAddAssignment(staffId, date, slot, hs.usesParking)
+    },
+    [modal, helpStaff, assignments, getAssignedSlots, onAddAssignment, onRemoveAssignment],
+  )
+
   const getHelpAlert = (date: string, timeSlot: TimeSlot) =>
     helpAlerts.find((h) => h.date === date && h.timeSlot === timeSlot)
 
@@ -109,7 +136,8 @@ export function ShiftTable({
     }, 0)
   }
 
-  const modalStaff = modal ? staff.find((s) => s.id === modal.staffId) : null
+  const modalStaff = modal && !modal.isHelpStaff ? staff.find((s) => s.id === modal.staffId) : null
+  const modalHelpStaff = modal?.isHelpStaff ? helpStaff.find((hs) => hs.id === modal.staffId) : null
 
   return (
     <>
@@ -208,11 +236,54 @@ export function ShiftTable({
                 })}
               </tr>
             ))}
+
+            {/* ヘルプスタッフセクション */}
+            {helpStaff.length > 0 && (
+              <>
+                <tr>
+                  <td
+                    colSpan={dates.length + 1}
+                    className="sticky left-0 z-10 bg-gray-100 border border-gray-200 px-2 py-0.5 text-[10px] text-gray-500 font-medium"
+                  >
+                    ヘルプスタッフ
+                  </td>
+                </tr>
+                {helpStaff.map((hs) => (
+                  <tr key={hs.id}>
+                    <td className="sticky left-0 z-10 bg-white border border-gray-200 px-2 py-1 font-medium text-gray-800 whitespace-nowrap">
+                      {hs.name}
+                    </td>
+                    {dates.map((date) => {
+                      const assignedSlots = getAssignedSlots(hs.id, date)
+                      return (
+                        <td
+                          key={date}
+                          className="border border-gray-200 px-1 py-1 align-top cursor-pointer hover:bg-gray-50 bg-white"
+                          onClick={() => setModal({ staffId: hs.id, date, isHelpStaff: true })}
+                        >
+                          {assignedSlots.map((slot) => {
+                            const spot = getParkingSpot(hs.id, date, slot)
+                            return (
+                              <div key={slot} className="mb-0.5">
+                                <TimeSlotBadge slot={slot} />
+                                {spot && (
+                                  <span className="ml-1 text-[10px] text-gray-500">{spot}</span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </>
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* アサインモーダル */}
+      {/* アサインモーダル（通常スタッフ） */}
       {modal && modalStaff && (
         <AssignModal
           staffName={modalStaff.name}
@@ -220,6 +291,18 @@ export function ShiftTable({
           assignedSlots={getAssignedSlots(modal.staffId, modal.date)}
           unavailableSlots={ALL_TIME_SLOTS.filter((s) => !modalStaff.availableSlots.includes(s))}
           onToggle={handleToggleSlot}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* アサインモーダル（ヘルプスタッフ） */}
+      {modal && modalHelpStaff && (
+        <AssignModal
+          staffName={modalHelpStaff.name}
+          dateLabel={formatDateLabel(modal.date)}
+          assignedSlots={getAssignedSlots(modal.staffId, modal.date)}
+          unavailableSlots={ALL_TIME_SLOTS.filter((s) => !modalHelpStaff.availableSlots.includes(s))}
+          onToggle={handleToggleHelpSlot}
           onClose={() => setModal(null)}
         />
       )}
