@@ -101,6 +101,7 @@ describe('ShiftTable / ヘルプスタッフのシフト表表示', () => {
   it('ヘルプスタッフのアサインバッジが表示される', () => {
     const hs = makeHelpStaff('h1', '佐々木')
     const assignment: ShiftAssignment = {
+      id: 'a1',
       staffId: 'h1',
       date: '2025-01-06',
       timeSlot: 'morning',
@@ -124,10 +125,6 @@ describe('ShiftTable / ヘルプスタッフのシフト表表示', () => {
     render(<ShiftTable {...defaultProps} dates={['2025-01-06']} helpStaff={[hs]} />)
 
     // ヘルプスタッフ行のセルをクリック（行テキストに「佐々木」が含まれる行のtdをクリック）
-    const cells = screen.getAllByRole('cell')
-    // 「佐々木」を含む行のボディセル（スタッフ名セル以外）を探す
-    const staffNameCell = cells.find((c) => c.textContent === '佐々木')
-    // 次の隣のセル（日付セル）をクリック
     // テーブル構造から佐々木の行の日付セルを特定
     const rows = screen.getAllByRole('row')
     const helpRow = rows.find((r) => r.textContent?.includes('佐々木'))
