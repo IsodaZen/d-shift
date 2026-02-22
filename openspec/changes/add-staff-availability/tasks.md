@@ -35,14 +35,14 @@
 
 ### Phase 3: 稼働可能日付カレンダーUI（TDD）
 
-- [ ] `src/components/HelpStaffAvailabilityCalendar.test.tsx` を作成しテストを書く（Red）
+- [x] `src/components/HelpStaffAvailabilityCalendar.test.tsx` を作成しテストを書く（Red）
   - 「シフト期間内の日付がカレンダーに表示される」
   - 「登録済みの稼働可能日付が選択済み状態で表示される」
   - 「シフト期間外の日付はグレーアウトして選択不可」
   - 「期間内の日付をタップすると選択状態がトグルされる」
   - 「保存ボタンを押すと選択中の日付がコールバックで返される」
 
-- [ ] `src/components/HelpStaffAvailabilityCalendar.tsx` を作成し実装する（Green）
+- [x] `src/components/HelpStaffAvailabilityCalendar.tsx` を作成し実装する（Green）
   - Props: `periodDates: string[]`, `selectedDates: string[]`, `onSave: (dates: string[]) => void`
   - 既存の `DayOffCalendar` のパターンを参考にカレンダーグリッドを実装
   - 月送り（前月/翌月）ボタン対応
