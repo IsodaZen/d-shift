@@ -70,7 +70,7 @@
 
 ### Phase 5: 自動生成アルゴリズムの拡張（TDD）
 
-- [ ] `src/utils/autoShiftGenerator.test.ts` にヘルプスタッフ関連テストを追加する（Red）
+- [x] `src/utils/autoShiftGenerator.test.ts` にヘルプスタッフ関連テストを追加する（Red）
   - 「通常スタッフで充足可能な場合、ヘルプスタッフはアサインされない」
   - 「通常スタッフだけでは不足する場合、ヘルプスタッフがアサインされる」
   - 「ヘルプスタッフは稼働可能日付のみにアサインされる」
@@ -79,7 +79,7 @@
   - 「ヘルプスタッフも出勤日には全時間帯にアサインされる」
   - 「複数ヘルプスタッフがいる場合、アサイン数の少ないヘルプスタッフが優先される」
 
-- [ ] `src/utils/autoShiftGenerator.ts` を拡張する（Green）
+- [x] `src/utils/autoShiftGenerator.ts` を拡張する（Green）
   - `GenerateAutoShiftParams` に `helpStaff: HelpStaff[]` を追加
   - ソート順: 通常スタッフ（週アサイン数昇順）→ ヘルプスタッフ（アサイン数昇順）
   - ヘルプスタッフの制約: `availableDates` に含まれる日付のみ、`availableSlots` の時間帯のみ
