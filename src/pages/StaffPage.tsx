@@ -1,17 +1,24 @@
 // タスク4.2, 4.4, 4.5: StaffPage（スタッフ管理ページ）
+// D&D機能追加: staff-list-drag-drop
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Staff } from '../types'
 import { TIME_SLOT_LABELS } from '../types'
 import { StaffForm } from '../components/StaffForm'
 import { useStaff } from '../hooks/useStaff'
+import { useDragSort } from '../hooks/useDragSort'
 
 type FormMode = { type: 'add' } | { type: 'edit'; staff: Staff } | null
 
 export function StaffPage() {
-  const { staff, addStaff, updateStaff, deleteStaff } = useStaff()
+  const { staff, addStaff, updateStaff, deleteStaff, reorderStaff } = useStaff()
   const [mode, setMode] = useState<FormMode>(null)
   const navigate = useNavigate()
+
+  const { draggingIndex, dragOverIndex, getDragHandleProps } = useDragSort({
+    onReorder: reorderStaff,
+    disabled: staff.length <= 1,
+  })
 
   const handleSubmit = (data: Omit<Staff, 'id'>) => {
     if (mode?.type === 'edit') {
@@ -58,38 +65,63 @@ export function StaffPage() {
         </div>
       ) : (
         <>
-          <ul className="space-y-2">
-            {staff.map((s) => (
-              <li
-                key={s.id}
-                className="bg-white border border-gray-200 rounded-xl p-3 flex items-start justify-between gap-2"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-800 text-sm">{s.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    週{s.maxWeeklyShifts}回上限 ·{' '}
-                    {s.availableSlots.map((sl) => TIME_SLOT_LABELS[sl]).join('/')}
-                    {s.usesParking && ' · 駐車場あり'}
-                  </p>
-                </div>
-                <div className="flex gap-2 shrink-0">
+          <ul className={`space-y-2 ${draggingIndex !== null ? 'select-none' : ''}`}>
+            {staff.map((s, i) => {
+              const isDragging = draggingIndex === i
+              const isDragOver = dragOverIndex === i && draggingIndex !== i
+              const dragProps = getDragHandleProps(i)
+
+              return (
+                <li
+                  key={s.id}
+                  className={[
+                    'bg-white border border-gray-200 rounded-xl p-3 flex items-start justify-between gap-2',
+                    isDragging ? 'opacity-50' : '',
+                    isDragOver ? 'border-indigo-400 border-2' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  {/* ドラッグハンドル */}
                   <button
-                    onClick={() => setMode({ type: 'edit', staff: s })}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded"
+                    aria-label="ドラッグハンドル"
+                    className="shrink-0 cursor-grab text-gray-400 hover:text-gray-600 text-lg leading-none pt-0.5 touch-none"
+                    onPointerDown={(e) => dragProps.onPointerDown(e.nativeEvent as PointerEvent)}
+                    onPointerMove={(e) => dragProps.onPointerMove(e.nativeEvent as PointerEvent)}
+                    onPointerEnter={(e) => dragProps.onPointerEnter(e.nativeEvent as PointerEvent)}
+                    onPointerUp={(e) => dragProps.onPointerUp(e.nativeEvent as PointerEvent)}
+                    onPointerCancel={(e) => dragProps.onPointerCancel(e.nativeEvent as PointerEvent)}
                   >
-                    編集
+                    ⠿
                   </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`「${s.name}」を削除しますか？`)) deleteStaff(s.id)
-                    }}
-                    className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded"
-                  >
-                    削除
-                  </button>
-                </div>
-              </li>
-            ))}
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-800 text-sm">{s.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      週{s.maxWeeklyShifts}回上限 ·{' '}
+                      {s.availableSlots.map((sl) => TIME_SLOT_LABELS[sl]).join('/')}
+                      {s.usesParking && ' · 駐車場あり'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => setMode({ type: 'edit', staff: s })}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded"
+                    >
+                      編集
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`「${s.name}」を削除しますか？`)) deleteStaff(s.id)
+                      }}
+                      className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded"
+                    >
+                      削除
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
           </ul>
 
           {/* フロー誘導 CTA: スタッフが1件以上の場合 */}
