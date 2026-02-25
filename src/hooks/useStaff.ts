@@ -33,5 +33,17 @@ export function useStaff() {
     [setStaff],
   )
 
-  return { staff, addStaff, updateStaff, deleteStaff }
+  const reorderStaff = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      setStaff((prev) => {
+        const next = [...prev]
+        const [item] = next.splice(fromIndex, 1)
+        next.splice(toIndex, 0, item)
+        return next
+      })
+    },
+    [setStaff],
+  )
+
+  return { staff, addStaff, updateStaff, deleteStaff, reorderStaff }
 }

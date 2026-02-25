@@ -123,4 +123,78 @@ describe('useStaff', () => {
       expect(result.current.staff[0].name).toBe('スタッフB')
     })
   })
+
+  describe('reorderStaff', () => {
+    it('reorderStaff(0, 2) を呼ぶと先頭スタッフが3番目に移動する', () => {
+      // spec: スタッフ一覧をドラッグ&ドロップで並び替えられる
+      const { result } = renderHook(() => useStaff())
+
+      act(() => {
+        result.current.addStaff({ ...newStaffData, name: 'スタッフA' })
+        result.current.addStaff({ ...newStaffData, name: 'スタッフB' })
+        result.current.addStaff({ ...newStaffData, name: 'スタッフC' })
+      })
+
+      act(() => {
+        result.current.reorderStaff(0, 2)
+      })
+
+      expect(result.current.staff[0].name).toBe('スタッフB')
+      expect(result.current.staff[1].name).toBe('スタッフC')
+      expect(result.current.staff[2].name).toBe('スタッフA')
+    })
+
+    it('reorderStaff(2, 0) を呼ぶと3番目スタッフが先頭に移動する', () => {
+      const { result } = renderHook(() => useStaff())
+
+      act(() => {
+        result.current.addStaff({ ...newStaffData, name: 'スタッフA' })
+        result.current.addStaff({ ...newStaffData, name: 'スタッフB' })
+        result.current.addStaff({ ...newStaffData, name: 'スタッフC' })
+      })
+
+      act(() => {
+        result.current.reorderStaff(2, 0)
+      })
+
+      expect(result.current.staff[0].name).toBe('スタッフC')
+      expect(result.current.staff[1].name).toBe('スタッフA')
+      expect(result.current.staff[2].name).toBe('スタッフB')
+    })
+
+    it('reorderStaff(i, i) を呼んでも順序が変わらない', () => {
+      const { result } = renderHook(() => useStaff())
+
+      act(() => {
+        result.current.addStaff({ ...newStaffData, name: 'スタッフA' })
+        result.current.addStaff({ ...newStaffData, name: 'スタッフB' })
+        result.current.addStaff({ ...newStaffData, name: 'スタッフC' })
+      })
+
+      act(() => {
+        result.current.reorderStaff(1, 1)
+      })
+
+      expect(result.current.staff[0].name).toBe('スタッフA')
+      expect(result.current.staff[1].name).toBe('スタッフB')
+      expect(result.current.staff[2].name).toBe('スタッフC')
+    })
+
+    it('並び替え後の順序が LocalStorage に保存される', () => {
+      const { result } = renderHook(() => useStaff())
+
+      act(() => {
+        result.current.addStaff({ ...newStaffData, name: 'スタッフA' })
+        result.current.addStaff({ ...newStaffData, name: 'スタッフB' })
+      })
+
+      act(() => {
+        result.current.reorderStaff(0, 1)
+      })
+
+      const stored = JSON.parse(localStorage.getItem('d-shift:staff') ?? '[]')
+      expect(stored[0].name).toBe('スタッフB')
+      expect(stored[1].name).toBe('スタッフA')
+    })
+  })
 })
