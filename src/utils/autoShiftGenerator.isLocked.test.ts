@@ -68,6 +68,35 @@ describe('generateAutoShift / 固定アサインスキップ', () => {
   })
 })
 
+describe('generateAutoShift / 固定アサインの週カウント算入', () => {
+  it('固定アサインが週カウントに算入され、週上限を超えない', () => {
+    // バグ再現: maxWeeklyShifts=3、月曜に固定アサイン1件 → 自動生成は2日以内
+    // 実際は lockedAssignments が getWeeklyCount に渡されていなかったため
+    // 固定アサインが週カウントに含まれず、3日分が自動生成されてしまう問題
+    const staff = [makeStaff({ id: 's1', name: '山田', maxWeeklyShifts: 3 })]
+    // 月曜（2025-02-03）に固定アサイン済み → その日はスキップ
+    const lockedStaffDates = new Set(['s1_2025-02-03'])
+    const lockedAssignments: ShiftAssignment[] = [
+      { id: 'locked-1', staffId: 's1', date: '2025-02-03', timeSlot: 'morning', parkingSpot: null, isLocked: true },
+    ]
+
+    // 火〜金（同じ週）で自動生成
+    const result = generateAutoShift({
+      periodDates: ['2025-02-04', '2025-02-05', '2025-02-06', '2025-02-07'],
+      staff,
+      dayOffs: [],
+      getRequiredCount: (_, slot) => (slot === 'morning' ? 1 : 0),
+      allParkingSpots,
+      lockedStaffDates,
+      lockedAssignments,
+    })
+
+    // 固定1件 + 自動生成 ≤ 3件（週上限）→ 自動生成は最大2件
+    const s1Assignments = result.filter((a) => a.staffId === 's1')
+    expect(s1Assignments).toHaveLength(2) // 週上限3 - 固定1 = 自動2
+  })
+})
+
 describe('generateAutoShift / 固定アサインの remaining カウント算入', () => {
   it('固定アサインが既存の必要数に算入され、不足分のみ自動生成される', () => {
     // spec: スタッフAの固定アサインを含めた午前のアサイン数が3人に達している場合、追加生成は行われない

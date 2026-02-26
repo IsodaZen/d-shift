@@ -142,17 +142,21 @@ export function generateAutoShift({
     }
 
     // --- 通常スタッフ ---
+    // 週カウントには新規生成分（result）と固定アサイン（lockedAssignments）を合わせて使う
+    const allAssignmentsForWeekCount = [...result, ...lockedAssignments]
     const candidates = staff.filter((s) => {
       // 固定アサインがあるスタッフ・日付はスキップ
       if (lockedStaffDates.has(`${s.id}_${date}`)) return false
       if (dayOffs.some((d) => d.staffId === s.id && d.date === date)) return false
-      const weekCount = getWeeklyCount(s.id, date, result)
+      const weekCount = getWeeklyCount(s.id, date, allAssignmentsForWeekCount)
       if (weekCount >= s.maxWeeklyShifts) return false
       return true
     })
 
     candidates.sort(
-      (a, b) => getWeeklyCount(a.id, date, result) - getWeeklyCount(b.id, date, result),
+      (a, b) =>
+        getWeeklyCount(a.id, date, allAssignmentsForWeekCount) -
+        getWeeklyCount(b.id, date, allAssignmentsForWeekCount),
     )
 
     for (const s of candidates) {
