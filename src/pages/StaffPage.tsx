@@ -113,7 +113,7 @@ export function StaffPage() {
   )
 
   const handleDragOver = (event: DragOverEvent) => {
-    setOverId(event.over?.id as string ?? null)
+    setOverId(event.over ? String(event.over.id) : null)
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -163,6 +163,15 @@ export function StaffPage() {
     }
     setDayOffError('')
     setDayOffDate('')
+  }
+
+  const openDayOffView = (s: Staff) => {
+    const registered = dayOffs.filter((d) => d.staffId === s.id).map((d) => d.date)
+    setCalendarSelectedDates(registered)
+    setSyncMessage('')
+    setDayOffDate('')
+    setDayOffError('')
+    setMode({ type: 'dayoff', staff: s })
   }
 
   // 希望休管理ビュー
@@ -281,16 +290,7 @@ export function StaffPage() {
                     isOver={overId === s.id}
                     onEdit={(s) => setMode({ type: 'edit', staff: s })}
                     onDelete={(id) => deleteStaff(id)}
-                    onDayOff={(s) => {
-                      const registered = dayOffs
-                        .filter((d) => d.staffId === s.id)
-                        .map((d) => d.date)
-                      setCalendarSelectedDates(registered)
-                      setSyncMessage('')
-                      setDayOffDate('')
-                      setDayOffError('')
-                      setMode({ type: 'dayoff', staff: s })
-                    }}
+                    onDayOff={openDayOffView}
                   />
                 ))}
               </ul>
