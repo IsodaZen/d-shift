@@ -6,12 +6,13 @@ import type { Staff, HelpStaff, ShiftAssignment } from '../types'
 
 // --- spec: shift-schedule-view / 土日祝の列ヘッダースタイル ---
 
-const makeStaff = (id: string): Staff => ({
+const makeStaff = (id: string, overrides?: Partial<Staff>): Staff => ({
   id,
   name: `スタッフ${id}`,
   maxWeeklyShifts: 5,
   availableSlots: ['morning', 'afternoon', 'evening'],
   usesParking: false,
+  ...overrides,
 })
 
 const makeHelpStaff = (id: string, name?: string): HelpStaff => ({
@@ -164,5 +165,201 @@ describe('ShiftTable / ヘルプスタッフのシフト表表示', () => {
     const morningButton = screen.getByRole('button', { name: /午前/ })
     await user.click(morningButton)
     expect(onAddAssignment).toHaveBeenCalledWith('h1', '2025-01-06', 'morning', false)
+  })
+})
+
+// --- spec: shift-assignment / 通常スタッフ一括アサイン ---
+
+describe('ShiftTable / 通常スタッフセルクリック一括アサイン', () => {
+  it('アサインなしセルをクリックするとavailableSlotsの全時間帯がonAddAssignmentで呼ばれる', async () => {
+    const s = makeStaff('s1', { availableSlots: ['morning', 'afternoon'] })
+    const onAddAssignment = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={[s]}
+        onAddAssignment={onAddAssignment}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCells = staffRow?.querySelectorAll('td')
+    const dateCell = dateCells?.[1]
+    await user.click(dateCell!)
+
+    // availableSlots の 2 時間帯 (morning, afternoon) 分呼ばれること
+    expect(onAddAssignment).toHaveBeenCalledTimes(2)
+    expect(onAddAssignment).toHaveBeenCalledWith('s1', '2025-01-06', 'morning', false)
+    expect(onAddAssignment).toHaveBeenCalledWith('s1', '2025-01-06', 'afternoon', false)
+  })
+
+  it('availableSlotsが空のスタッフのセルをクリックすると全時間帯がonAddAssignmentで呼ばれる', async () => {
+    const s = makeStaff('s1', { availableSlots: [] })
+    const onAddAssignment = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={[s]}
+        onAddAssignment={onAddAssignment}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCells = staffRow?.querySelectorAll('td')
+    const dateCell = dateCells?.[1]
+    await user.click(dateCell!)
+
+    // 全3時間帯 (morning, afternoon, evening) 分呼ばれること
+    expect(onAddAssignment).toHaveBeenCalledTimes(3)
+    expect(onAddAssignment).toHaveBeenCalledWith('s1', '2025-01-06', 'morning', false)
+    expect(onAddAssignment).toHaveBeenCalledWith('s1', '2025-01-06', 'afternoon', false)
+    expect(onAddAssignment).toHaveBeenCalledWith('s1', '2025-01-06', 'evening', false)
+  })
+
+  it('アサインありセルをクリックするとonRemoveAssignmentが全アサイン分呼ばれる', async () => {
+    const s = makeStaff('s1')
+    const onRemoveAssignment = vi.fn()
+    const user = userEvent.setup()
+    const assignments: ShiftAssignment[] = [
+      { id: 'a1', staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a2', staffId: 's1', date: '2025-01-06', timeSlot: 'afternoon', parkingSpot: null, isLocked: false },
+    ]
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={[s]}
+        assignments={assignments}
+        onRemoveAssignment={onRemoveAssignment}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCells = staffRow?.querySelectorAll('td')
+    const dateCell = dateCells?.[1]
+    await user.click(dateCell!)
+
+    // 全アサイン (morning, afternoon) 分 onRemoveAssignment が呼ばれること
+    expect(onRemoveAssignment).toHaveBeenCalledTimes(2)
+    expect(onRemoveAssignment).toHaveBeenCalledWith('s1', '2025-01-06', 'morning')
+    expect(onRemoveAssignment).toHaveBeenCalledWith('s1', '2025-01-06', 'afternoon')
+  })
+
+  // --- spec: shift-assignment / 週上限チェック（ブロック） ---
+
+  it('週上限に達している場合にアサインがブロックされてonAddAssignmentが呼ばれない', async () => {
+    // maxWeeklyShifts=2, 既に2日分のアサインがある（月・火）
+    const s = makeStaff('s1', { maxWeeklyShifts: 2, availableSlots: ['morning'] })
+    const onAddAssignment = vi.fn()
+    const user = userEvent.setup()
+    const assignments: ShiftAssignment[] = [
+      { id: 'a1', staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a2', staffId: 's1', date: '2025-01-07', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+    ]
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-08']}
+        staff={[s]}
+        assignments={assignments}
+        onAddAssignment={onAddAssignment}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCells = staffRow?.querySelectorAll('td')
+    const dateCell = dateCells?.[1]
+    await user.click(dateCell!)
+
+    // ブロックされるのでonAddAssignmentは呼ばれない
+    expect(onAddAssignment).not.toHaveBeenCalled()
+    // 警告トーストが表示される
+    expect(screen.getByText(/週.*上限|上限.*週/)).toBeTruthy()
+  })
+
+  it('週上限未満の場合はアサインが保存される', async () => {
+    const s = makeStaff('s1', { maxWeeklyShifts: 3, availableSlots: ['morning'] })
+    const onAddAssignment = vi.fn()
+    const user = userEvent.setup()
+    const assignments: ShiftAssignment[] = [
+      { id: 'a1', staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+    ]
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-08']}
+        staff={[s]}
+        assignments={assignments}
+        onAddAssignment={onAddAssignment}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCells = staffRow?.querySelectorAll('td')
+    const dateCell = dateCells?.[1]
+    await user.click(dateCell!)
+
+    // 上限未満なのでアサインが保存される
+    expect(onAddAssignment).toHaveBeenCalledWith('s1', '2025-01-08', 'morning', false)
+  })
+
+  // --- spec: shift-assignment / 出勤不可時間帯警告 ---
+
+  it('出勤不可時間帯を含む一括アサイン時に警告トーストが表示される', async () => {
+    // availableSlots: ['morning'] のみ → 'afternoon', 'evening' は出勤不可
+    const s = makeStaff('s1', { availableSlots: ['morning'] })
+    const onAddAssignment = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={[s]}
+        onAddAssignment={onAddAssignment}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCells = staffRow?.querySelectorAll('td')
+    const dateCell = dateCells?.[1]
+    await user.click(dateCell!)
+
+    // アサイン自体は保存される（availableSlots の morning 分）
+    expect(onAddAssignment).toHaveBeenCalled()
+    // 警告トーストが表示される
+    expect(screen.getByText(/出勤不可/)).toBeTruthy()
+  })
+
+  it('出勤不可時間帯を含む場合もアサイン自体は保存される', async () => {
+    const s = makeStaff('s1', { availableSlots: ['morning'] })
+    const onAddAssignment = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={[s]}
+        onAddAssignment={onAddAssignment}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCells = staffRow?.querySelectorAll('td')
+    const dateCell = dateCells?.[1]
+    await user.click(dateCell!)
+
+    // availableSlots の morning のみアサインされる
+    expect(onAddAssignment).toHaveBeenCalledWith('s1', '2025-01-06', 'morning', false)
   })
 })

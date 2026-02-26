@@ -5,7 +5,7 @@ import { TimeSlotBadge } from './TimeSlotBadge'
 import { AssignModal } from './AssignModal'
 import { Toast } from './Toast'
 import { formatDateLabel, getDayType } from '../utils/dateUtils'
-import { getWeeklyAssignmentCount, isAvailableSlot } from '../utils/shiftUtils'
+import { getWeeklyAssignmentCount } from '../utils/shiftUtils'
 import type { HelpAlertInfo } from '../hooks/useHelpAlert'
 import { ALL_TIME_SLOTS, TIME_SLOT_LABELS } from '../types'
 import type { ShiftAssignment, PreferredDayOff } from '../types'
@@ -23,10 +23,10 @@ interface ShiftTableProps {
   getRequiredCount?: (date: string, slot: TimeSlot) => number
 }
 
+// ヘルプスタッフ専用モーダル状態
 interface ModalState {
   staffId: string
   date: string
-  isHelpStaff?: boolean
 }
 
 export function ShiftTable({
@@ -91,40 +91,44 @@ export function ShiftTable({
     [assignments],
   )
 
-  const handleToggleSlot = useCallback(
-    (slot: TimeSlot) => {
-      if (!modal) return
-      const { staffId, date } = modal
+  /** 通常スタッフセルクリック: 全時間帯一括トグル */
+  const handleBulkToggle = useCallback(
+    (staffId: string, date: string) => {
       const s = staff.find((x) => x.id === staffId)
       if (!s) return
 
-      const alreadyAssigned = getAssignedSlots(staffId, date).includes(slot)
-      if (alreadyAssigned) {
-        onRemoveAssignment(staffId, date, slot)
+      const assignedSlots = getAssignedSlots(staffId, date)
+
+      // アサインがある場合: 全削除
+      if (assignedSlots.length > 0) {
+        assignedSlots.forEach((slot) => {
+          onRemoveAssignment(staffId, date, slot)
+        })
         return
       }
 
-      // タスク9.2: 週上限チェック
-      // 同一日に既にアサインがある場合は出勤日数が増えないためスキップ
-      const alreadyHasAssignmentOnDate = assignments.some(
-        (a) => a.staffId === staffId && a.date === date,
-      )
-      if (!alreadyHasAssignmentOnDate) {
-        const weekCount = getWeeklyAssignmentCount(staffId, date, assignments)
-        if (weekCount >= s.maxWeeklyShifts) {
-          setToast(`週上限（${s.maxWeeklyShifts}日）を超えます`)
-          return
-        }
+      // アサインがない場合: 週上限チェック（新しい日へのアサインなのでチェック）
+      const weekCount = getWeeklyAssignmentCount(staffId, date, assignments)
+      if (weekCount >= s.maxWeeklyShifts) {
+        setToast(`週上限（${s.maxWeeklyShifts}日）に達しているため、アサインできません`)
+        return
       }
 
-      // タスク9.3: 出勤不可時間帯チェック
-      if (!isAvailableSlot(s, slot)) {
-        setToast(`「${TIME_SLOT_LABELS[slot]}」は出勤不可の時間帯です`)
-      }
+      // アサインする時間帯を決定: availableSlots が空なら ALL_TIME_SLOTS をフォールバック
+      const slotsToAssign = s.availableSlots.length > 0 ? s.availableSlots : ALL_TIME_SLOTS
 
-      onAddAssignment(staffId, date, slot, s.usesParking)
+      // 一括アサイン
+      slotsToAssign.forEach((slot) => {
+        onAddAssignment(staffId, date, slot, s.usesParking)
+      })
+
+      // 出勤不可時間帯チェック: availableSlots が全時間帯を網羅していない場合に通知
+      // アサイン対象は availableSlots のみのため、出勤不可の時間帯はアサインされていない
+      if (s.availableSlots.length > 0 && s.availableSlots.length < ALL_TIME_SLOTS.length) {
+        setToast('出勤不可の時間帯があります（出勤可能な時間帯のみアサインしました）')
+      }
     },
-    [modal, staff, assignments, getAssignedSlots, onAddAssignment, onRemoveAssignment],
+    [staff, assignments, getAssignedSlots, onAddAssignment, onRemoveAssignment],
   )
 
   const handleToggleHelpSlot = useCallback(
@@ -148,7 +152,8 @@ export function ShiftTable({
 
       onAddAssignment(staffId, date, slot, hs.usesParking)
     },
-    [modal, helpStaff, assignments, getAssignedSlots, onAddAssignment, onRemoveAssignment],
+    // getAssignedSlots が assignments を依存に持つため assignments は不要
+    [modal, helpStaff, getAssignedSlots, onAddAssignment, onRemoveAssignment],
   )
 
   const getHelpAlert = (date: string, timeSlot: TimeSlot) =>
@@ -165,8 +170,7 @@ export function ShiftTable({
     }, 0)
   }
 
-  const modalStaff = modal && !modal.isHelpStaff ? staff.find((s) => s.id === modal.staffId) : null
-  const modalHelpStaff = modal?.isHelpStaff ? helpStaff.find((hs) => hs.id === modal.staffId) : null
+  const modalHelpStaff = modal ? helpStaff.find((hs) => hs.id === modal.staffId) : null
 
   return (
     <>
@@ -243,7 +247,7 @@ export function ShiftTable({
                     <td
                       key={date}
                       className={`border border-gray-200 px-1 py-1 align-top cursor-pointer hover:bg-gray-50 ${cellBg}`}
-                      onClick={() => setModal({ staffId: s.id, date })}
+                      onClick={() => handleBulkToggle(s.id, date)}
                     >
                       {isDayOff && (
                         <span className="block text-[10px] text-yellow-600 font-medium mb-0.5">
@@ -314,7 +318,7 @@ export function ShiftTable({
                         <td
                           key={date}
                           className="border border-gray-200 px-1 py-1 align-top cursor-pointer hover:bg-gray-50 bg-white"
-                          onClick={() => setModal({ staffId: hs.id, date, isHelpStaff: true })}
+                          onClick={() => setModal({ staffId: hs.id, date })}
                         >
                           {assignedSlots.map((slot) => {
                             const spot = getParkingSpot(hs.id, date, slot)
@@ -338,19 +342,7 @@ export function ShiftTable({
         </table>
       </div>
 
-      {/* アサインモーダル（通常スタッフ） */}
-      {modal && modalStaff && (
-        <AssignModal
-          staffName={modalStaff.name}
-          dateLabel={formatDateLabel(modal.date)}
-          assignedSlots={getAssignedSlots(modal.staffId, modal.date)}
-          unavailableSlots={ALL_TIME_SLOTS.filter((s) => !modalStaff.availableSlots.includes(s))}
-          onToggle={handleToggleSlot}
-          onClose={() => setModal(null)}
-        />
-      )}
-
-      {/* アサインモーダル（ヘルプスタッフ） */}
+      {/* アサインモーダル（ヘルプスタッフ専用） */}
       {modal && modalHelpStaff && (
         <AssignModal
           staffName={modalHelpStaff.name}
