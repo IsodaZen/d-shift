@@ -10,6 +10,10 @@ interface GenerateAutoShiftParams {
   getRequiredCount: (date: string, slot: TimeSlot) => number
   allParkingSpots: string[]
   helpStaff?: HelpStaff[]
+  /** 固定アサインがあるスタッフ・日付のセット（key: "staffId_date"） */
+  lockedStaffDates?: Set<string>
+  /** 固定アサインの一覧（remainingカウントに算入するために使用） */
+  lockedAssignments?: ShiftAssignment[]
 }
 
 /**
@@ -83,6 +87,7 @@ function assignCandidate(
       date,
       timeSlot: slot,
       parkingSpot,
+      isLocked: false,
     })
     remaining[slot]--
   }
@@ -115,6 +120,8 @@ export function generateAutoShift({
   getRequiredCount,
   allParkingSpots,
   helpStaff = [],
+  lockedStaffDates = new Set(),
+  lockedAssignments = [],
 }: GenerateAutoShiftParams): ShiftAssignment[] {
   const result: ShiftAssignment[] = []
 
@@ -126,16 +133,30 @@ export function generateAutoShift({
       evening: getRequiredCount(date, 'evening'),
     }
 
+    // 固定アサインを remaining カウントに算入する
+    const lockedForDate = lockedAssignments.filter((a) => a.date === date && a.isLocked)
+    for (const locked of lockedForDate) {
+      if (locked.timeSlot in remaining) {
+        remaining[locked.timeSlot] = Math.max(0, remaining[locked.timeSlot] - 1)
+      }
+    }
+
     // --- 通常スタッフ ---
+    // 週カウントには新規生成分（result）と固定アサイン（lockedAssignments）を合わせて使う
+    const allAssignmentsForWeekCount = [...result, ...lockedAssignments]
     const candidates = staff.filter((s) => {
+      // 固定アサインがあるスタッフ・日付はスキップ
+      if (lockedStaffDates.has(`${s.id}_${date}`)) return false
       if (dayOffs.some((d) => d.staffId === s.id && d.date === date)) return false
-      const weekCount = getWeeklyCount(s.id, date, result)
+      const weekCount = getWeeklyCount(s.id, date, allAssignmentsForWeekCount)
       if (weekCount >= s.maxWeeklyShifts) return false
       return true
     })
 
     candidates.sort(
-      (a, b) => getWeeklyCount(a.id, date, result) - getWeeklyCount(b.id, date, result),
+      (a, b) =>
+        getWeeklyCount(a.id, date, allAssignmentsForWeekCount) -
+        getWeeklyCount(b.id, date, allAssignmentsForWeekCount),
     )
 
     for (const s of candidates) {

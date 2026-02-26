@@ -10,6 +10,7 @@ const makeAssignment = (
   id: 'test-id',
   timeSlot: 'morning',
   parkingSpot: null,
+  isLocked: false,
   ...overrides,
 })
 

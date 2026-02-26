@@ -19,6 +19,7 @@ const makeAssignment = (staffId: string, date: string, timeSlot: TimeSlot): Shif
   date,
   timeSlot,
   parkingSpot: null,
+  isLocked: false,
 })
 
 const noOp = () => {}

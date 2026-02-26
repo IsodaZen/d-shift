@@ -119,7 +119,7 @@ describe('ShiftPage', () => {
       localStorage.setItem(
         'd-shift:assignments',
         JSON.stringify([
-          { id: 'a1', staffId: 's1', date: '2025-02-03', timeSlot: 'morning', parkingSpot: null },
+          { id: 'a1', staffId: 's1', date: '2025-02-03', timeSlot: 'morning', parkingSpot: null, isLocked: false },
         ]),
       )
 
@@ -137,7 +137,7 @@ describe('ShiftPage', () => {
       localStorage.setItem(
         'd-shift:assignments',
         JSON.stringify([
-          { id: 'a1', staffId: 's1', date: '2025-02-03', timeSlot: 'morning', parkingSpot: null },
+          { id: 'a1', staffId: 's1', date: '2025-02-03', timeSlot: 'morning', parkingSpot: null, isLocked: false },
         ]),
       )
 
