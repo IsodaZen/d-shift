@@ -4,52 +4,53 @@
 - **StaffPage（`/`）**: スタッフの登録・編集・削除・並び替え
 - **SettingsPage（`/settings/dayoff`）**: 希望休の登録・編集・スタッフ別サマリー
 
-希望休はスタッフ単位で管理するため、本来スタッフページとの親和性が高い。本変更では StaffPage にタブUIを導入し、希望休管理を統合する。
+希望休はスタッフ単位で管理するため、本来スタッフページとの親和性が高い。本変更では、StaffPage の各スタッフアイテムに「希望休」ボタンを追加し、クリックで対象スタッフの希望休管理ビューに切り替える。
 
 ## Goals / Non-Goals
 
 **Goals:**
-- StaffPage にシンプルなタブUI（スタッフ一覧 / 希望休）を追加する
-- 希望休管理UI一式（カレンダーモード・フォールバック・スタッフ別サマリー）を StaffPage の希望休タブへ移植する
+- StaffPage の各スタッフアイテムに「希望休」ボタンを追加する
+- 「希望休」ボタンクリックで、対象スタッフの希望休管理ビューに StaffPage 内でビュー切り替えする
+- 希望休管理ビューではスタッフ選択ドロップダウンを設けず、対象スタッフを固定する
 - SettingsPage から dayoff タブおよび関連 state・handler を削除する
 - 既存の希望休ロジック（`useDayOffs`・`DayOffCalendar`・`syncDayOffs`）は変更しない
 
 **Non-Goals:**
-- URL ルーティングへのタブ連動（`/dayoff` などのサブパス化）は行わない（シンプルな in-page タブとする）
+- URL ルーティングへの希望休ビュー連動
+- タブUIの導入
 - 希望休の UX・ロジック変更
 - SettingsPage の他タブへの影響
 
 ## Decisions
 
-### 1. タブUIの実装方式：in-page state（URLサブパスなし）
+### 1. ビュー切り替えの実装方式：既存の mode パターンを拡張
 
-**決定**: StaffPage 内の `useState` でアクティブタブを管理し、URL には反映しない。
+**決定**: 既存の `FormMode = { type: 'add' } | { type: 'edit'; staff: Staff } | null` に `{ type: 'dayoff'; staff: Staff }` を追加する。
 
-**理由**: SettingsPage のタブは複数の独立した設定カテゴリのため URL 連動が有用だが、StaffPage のタブは「スタッフ一覧」と「希望休」という密接に関連した2機能のみ。URLサブパスを導入すると App.tsx のルート定義・AppHeader のタイトル・screen-navigation 仕様の変更が広範に及ぶため、コストに見合わない。
+**理由**: StaffPage はすでに mode state でビューを切り替える実装パターンを持っている（スタッフ追加・編集時に全体を差し替え）。同パターンを拡張するだけでよく、新規アーキテクチャが不要。`staff` を mode に含めることで、スタッフ選択ドロップダウンが不要になり、UXがシンプルになる。
 
-**代替案**: `/` と `/dayoff` を別ルートにする → ルート追加・リダイレクト処理・ナビゲーションアイコンの変更が必要になり複雑化するため不採用。
+**代替案**: タブUIの導入 → 2タブ切り替えでは「全スタッフの希望休を一覧から選択」というフローが必要になりドロップダウンが残る。per-staff ボタンのほうがUXが明快なため不採用。
 
 ### 2. 希望休管理 state・handler の移植方針：StaffPage に直接記述
 
-**決定**: `SettingsPage.tsx` から dayoff 関連の state（`dayOffStaffId`、`calendarStaffId` 等）と handler（`handleCalendarStaffChange`、`handleSyncDayOffs` 等）をそのまま `StaffPage.tsx` に移植する。共通コンポーネント化は行わない。
+**決定**: `SettingsPage.tsx` から dayoff 関連の state（`calendarSelectedDates`、`syncMessage` 等）と handler（`handleCalendarStaffChange`、`handleSyncDayOffs` 等）を StaffPage.tsx に移植する。ただし `calendarStaffId` は不要（mode.staff.id で代替）。共通コンポーネント化は行わない。
 
-**理由**: 希望休管理 UI は StaffPage 専用となるため、抽象化のメリットがない。ロジックをそのままコピーすることで変更範囲を最小化できる。
+**理由**: 希望休管理ビューは StaffPage 専用となるため、抽象化のメリットがない。変更範囲を最小化できる。
 
-### 3. タブの初期表示：スタッフ一覧タブ
+### 3. 希望休ビューのヘッダー
 
-**決定**: ページ初期表示では「スタッフ一覧」タブをアクティブにする。
+**決定**: 「{スタッフ名} の希望休」を見出しとして表示し、「戻る」ボタンでスタッフ一覧に戻る。
 
-**理由**: 既存のフロー（スタッフ登録 → シフト期間設定）を維持するため。
+**理由**: 編集フォームと同じUI構造を踏襲することで一貫性を保つ。
 
 ## Risks / Trade-offs
 
-- **SettingsPage のテスト削除**: dayoff タブのテストケースを削除するため、テストカバレッジが一時的に下がる → StaffPage のテストで同等のカバレッジを確保する
 - **StaffPage のファイルサイズ増加**: 希望休関連 state・handler が追加されるため StaffPage.tsx が肥大化する → 現時点では許容範囲。将来的なコンポーネント分割は別タスクで対応
-- **フロー誘導 CTAの表示タブ**: CTAはスタッフ一覧タブにのみ表示する。希望休タブに誤って遷移していても CTA が見えないため、操作フローを見失う可能性がある → 軽微なリスクとして許容
+- **SettingsPage のテスト削除**: dayoff タブのテストケースを削除するため、テストカバレッジが一時的に下がる → StaffPage のテストで同等のカバレッジを確保する
 
 ## Migration Plan
 
-1. StaffPage にタブUIと希望休管理コードを追加（テスト先行）
+1. StaffPage に「希望休」ボタンと希望休管理ビューを追加（テスト先行）
 2. SettingsPage から dayoff タブ関連コードを削除（テスト先行）
 3. 仕様ファイル（specs）を更新
 
