@@ -140,7 +140,16 @@ bun run preview      # ビルド結果のプレビュー
 1. `/opsx:new` — 変更提案を作成
 2. `/opsx:continue` — proposal → tasks → specsの順にアーティファクトを作成
 3. `/opsx:apply` — 仕様に基づいて実装
-4. `/opsx:archive` — 完了後、仕様に統合
+4. `/opsx:verify` — 実装完了後、仕様・タスク・設計との整合性を検証する（**アーカイブ前に必須**）
+5. `/opsx:archive` — 完了後、仕様に統合
+
+### opsx:verify の Warning 対処方針
+
+`/opsx:verify` の結果に WARNING が含まれる場合は、アーカイブ前に必ず対処すること。
+
+- **WARNING の典型例**: 仕様シナリオに対応するテストが存在しない
+- **対処手順**: WARNING に記載された「推奨」に従いテストまたは実装を補完し、`bun run test` で全通過を確認してからアーカイブする
+- **SUGGESTION**: 任意対応（アーカイブをブロックしない）
 
 ## Git・コミット規約
 

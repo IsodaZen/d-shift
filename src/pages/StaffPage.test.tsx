@@ -249,6 +249,27 @@ describe('StaffPage 希望休管理ビュー コンテンツ', () => {
     await user.click(screen.getByRole('button', { name: '保存' }))
     expect(screen.getByText(/件を追加、.*件を削除しました/)).toBeInTheDocument()
   })
+
+  it('希望休管理ビューを開くと登録済み日付が選択済み状態でカレンダーに表示される', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    localStorage.setItem('d-shift:shift-period', SHIFT_PERIOD)
+    // スタッフ s1 の希望休として 2025-02-03 と 2025-02-05 を登録済みにする
+    localStorage.setItem(
+      'd-shift:day-offs',
+      JSON.stringify([
+        { id: 'd1', staffId: 's1', date: '2025-02-03' },
+        { id: 'd2', staffId: 's1', date: '2025-02-05' },
+      ]),
+    )
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    // 3日と5日が選択済み（bg-indigo-500）で表示される
+    expect(screen.getByRole('button', { name: /^3$/ }).className).toMatch(/bg-indigo-500/)
+    expect(screen.getByRole('button', { name: /^5$/ }).className).toMatch(/bg-indigo-500/)
+    // 登録されていない4日は未選択
+    expect(screen.getByRole('button', { name: /^4$/ }).className).not.toMatch(/bg-indigo-500/)
+  })
 })
 
 describe('StaffPage D&D ドラッグ&ドロップ', () => {
