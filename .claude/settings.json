@@ -2,5 +2,17 @@
   "enabledPlugins": {
     "commit-commands@claude-plugins-official": true
   },
-  "language": "Japanese"
+  "language": "Japanese",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
