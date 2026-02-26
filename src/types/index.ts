@@ -36,6 +36,7 @@ export interface ShiftAssignment {
   date: string // YYYY-MM-DD
   timeSlot: TimeSlot
   parkingSpot: string | null // 例: "A1", "B1", null
+  isLocked: boolean
 }
 
 export interface ParkingSlotType {

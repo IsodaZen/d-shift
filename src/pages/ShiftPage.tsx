@@ -37,7 +37,7 @@ export function ShiftPage() {
 
   const { staff } = useStaff()
   const { getAllSpots } = useParkingConfig()
-  const { assignments, addAssignment, removeAssignment, bulkSetAssignments } =
+  const { assignments, addAssignment, removeAssignment, bulkSetAssignments, setCellLocked } =
     useAssignments(getAllSpots)
   const { dayOffs } = useDayOffs()
   const { configs, getRequiredCount } = useShiftConfig()
@@ -61,6 +61,15 @@ export function ShiftPage() {
   }
 
   const applyAutoShift = () => {
+    // 固定アサインがあるスタッフ・日付を収集する
+    const lockedStaffDates = new Set(
+      assignments
+        .filter((a) => a.isLocked && periodDates.includes(a.date))
+        .map((a) => `${a.staffId}_${a.date}`),
+    )
+    // 固定アサイン一覧（remaining カウント算入に使用）
+    const lockedAssignments = assignments.filter((a) => a.isLocked && periodDates.includes(a.date))
+
     const newAssignments = generateAutoShift({
       periodDates,
       staff,
@@ -68,6 +77,8 @@ export function ShiftPage() {
       getRequiredCount,
       allParkingSpots: getAllSpots(),
       helpStaff,
+      lockedStaffDates,
+      lockedAssignments,
     })
     bulkSetAssignments(newAssignments, periodDates)
     setShowConfirm(false)
@@ -78,7 +89,10 @@ export function ShiftPage() {
       for (const slot of ALL_TIME_SLOTS) {
         const required = getRequiredCount(date, slot)
         if (required <= 0) continue
-        const assigned = newAssignments.filter((a) => a.date === date && a.timeSlot === slot).length
+        // 固定アサインも含めて充足チェックする
+        const assigned = [...lockedAssignments, ...newAssignments].filter(
+          (a) => a.date === date && a.timeSlot === slot,
+        ).length
         if (assigned < required) {
           shortages.push({ date, slot, shortage: required - assigned })
         }
@@ -127,6 +141,7 @@ export function ShiftPage() {
         helpStaff={helpStaff}
         onAddAssignment={addAssignment}
         onRemoveAssignment={removeAssignment}
+        onSetCellLocked={setCellLocked}
         getRequiredCount={getRequiredCount}
       />
 

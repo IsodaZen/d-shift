@@ -1,5 +1,5 @@
 // タスク3.5 + 7.4: useAssignments フック（アサイン追加・削除・保存）
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 import type { ShiftAssignment, TimeSlot } from '../types'
 import { assignParking } from '../utils/shiftUtils'
@@ -7,7 +7,17 @@ import { assignParking } from '../utils/shiftUtils'
 const STORAGE_KEY = 'd-shift:assignments'
 
 export function useAssignments(getAllSpots: () => string[]) {
-  const [assignments, setAssignments] = useLocalStorage<ShiftAssignment[]>(STORAGE_KEY, [])
+  const [rawAssignments, setAssignments] = useLocalStorage<ShiftAssignment[]>(STORAGE_KEY, [])
+
+  // 旧データ（isLocked なし）を読み込んだとき isLocked: false にフォールバックする後方互換処理
+  const assignments = useMemo(
+    () =>
+      rawAssignments.map((a) => ({
+        ...a,
+        isLocked: a.isLocked ?? false,
+      })),
+    [rawAssignments],
+  )
 
   const getAssignment = useCallback(
     (staffId: string, date: string, timeSlot: TimeSlot): ShiftAssignment | undefined => {
@@ -30,6 +40,7 @@ export function useAssignments(getAllSpots: () => string[]) {
         date,
         timeSlot,
         parkingSpot,
+        isLocked: true,
       }
       setAssignments((prev) => [...prev, entry])
       return entry
@@ -55,14 +66,29 @@ export function useAssignments(getAllSpots: () => string[]) {
     [assignments],
   )
 
-  /** 期間内の既存アサインをすべて削除し、新しいアサインを一括保存する */
+  /** 期間内の非固定アサインを削除し、固定アサインを保持しつつ新しいアサインを一括保存する */
   const bulkSetAssignments = useCallback(
     (newAssignments: ShiftAssignment[], periodDates: string[]) => {
       const dateSet = new Set(periodDates)
       setAssignments((prev) => {
+        // 期間外のアサインはすべて保持する
         const outside = prev.filter((a) => !dateSet.has(a.date))
-        return [...outside, ...newAssignments]
+        // 期間内の固定アサイン（isLocked: true）は保持する
+        const lockedInside = prev.filter((a) => dateSet.has(a.date) && (a.isLocked ?? false))
+        return [...outside, ...lockedInside, ...newAssignments]
       })
+    },
+    [setAssignments],
+  )
+
+  /** セル（staffId + date）単位で全アサインの isLocked を一括更新する */
+  const setCellLocked = useCallback(
+    (staffId: string, date: string, isLocked: boolean) => {
+      setAssignments((prev) =>
+        prev.map((a) =>
+          a.staffId === staffId && a.date === date ? { ...a, isLocked } : a,
+        ),
+      )
     },
     [setAssignments],
   )
@@ -74,5 +100,6 @@ export function useAssignments(getAllSpots: () => string[]) {
     removeAssignment,
     getAssignmentsForDate,
     bulkSetAssignments,
+    setCellLocked,
   }
 }

@@ -19,6 +19,7 @@ const makeAssignment = (staffId: string, date: string, timeSlot: ShiftAssignment
   date,
   timeSlot,
   parkingSpot: null,
+  isLocked: false,
 })
 
 const makeConfig = (date: string, timeSlot: ShiftSlotConfig['timeSlot'], requiredCount: number): ShiftSlotConfig => ({

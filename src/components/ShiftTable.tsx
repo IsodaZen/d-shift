@@ -19,6 +19,7 @@ interface ShiftTableProps {
   helpStaff?: HelpStaff[]
   onAddAssignment: (staffId: string, date: string, timeSlot: TimeSlot, usesParking: boolean) => void
   onRemoveAssignment: (staffId: string, date: string, timeSlot: TimeSlot) => void
+  onSetCellLocked?: (staffId: string, date: string, isLocked: boolean) => void
   getRequiredCount?: (date: string, slot: TimeSlot) => number
 }
 
@@ -37,6 +38,7 @@ export function ShiftTable({
   helpStaff = [],
   onAddAssignment,
   onRemoveAssignment,
+  onSetCellLocked,
   getRequiredCount,
 }: ShiftTableProps) {
   const [modal, setModal] = useState<ModalState | null>(null)
@@ -49,6 +51,33 @@ export function ShiftTable({
         .map((a) => a.timeSlot)
     },
     [assignments],
+  )
+
+  /** セルに固定アサインが1件以上あるかどうか */
+  const hasCellLocked = useCallback(
+    (staffId: string, date: string): boolean => {
+      return assignments.some((a) => a.staffId === staffId && a.date === date && a.isLocked)
+    },
+    [assignments],
+  )
+
+  /** セルの全アサインが固定かどうか（トグルの方向決定に使用） */
+  const isAllCellLocked = useCallback(
+    (staffId: string, date: string): boolean => {
+      const cellAssignments = assignments.filter((a) => a.staffId === staffId && a.date === date)
+      return cellAssignments.length > 0 && cellAssignments.every((a) => a.isLocked)
+    },
+    [assignments],
+  )
+
+  const handleToggleCellLocked = useCallback(
+    (e: React.MouseEvent, staffId: string, date: string) => {
+      e.stopPropagation()
+      if (!onSetCellLocked) return
+      const allLocked = isAllCellLocked(staffId, date)
+      onSetCellLocked(staffId, date, !allLocked)
+    },
+    [onSetCellLocked, isAllCellLocked],
   )
 
   const getParkingSpot = useCallback(
@@ -208,6 +237,8 @@ export function ShiftTable({
                       ? 'bg-yellow-50'
                       : 'bg-white'
 
+                  const cellIsLocked = hasCellLocked(s.id, date)
+                  const cellAllLocked = isAllCellLocked(s.id, date)
                   return (
                     <td
                       key={date}
@@ -231,6 +262,18 @@ export function ShiftTable({
                           </div>
                         )
                       })}
+                      {/* 固定インジケーター兼トグルボタン（統合）*/}
+                      {hasAssignment && onSetCellLocked && (
+                        <div className="flex justify-end mt-0.5">
+                          <button
+                            aria-label={cellAllLocked ? '固定解除' : '固定'}
+                            onClick={(e) => handleToggleCellLocked(e, s.id, date)}
+                            className={`text-[10px] leading-none ${cellIsLocked ? 'text-indigo-500' : 'text-gray-400 hover:text-indigo-500'}`}
+                          >
+                            {cellIsLocked ? '🔒' : '🔓'}
+                          </button>
+                        </div>
+                      )}
                     </td>
                   )
                 })}

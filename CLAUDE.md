@@ -55,11 +55,13 @@ tasks.mdを作成する際、各実装タスクは以下の順序で分解する
 3. リファクタリングタスク（Refactor）を独立して定義する
 
 **悪い例（TDDなし）**:
+
 ```
 - [ ] ShiftTableコンポーネントを実装する
 ```
 
 **良い例（TDDあり）**:
+
 ```
 - [ ] ShiftTableコンポーネントのテストを書く（Red）
 - [ ] ShiftTableコンポーネントを実装する（Green）
@@ -123,6 +125,7 @@ d-shift/
 bun install          # 依存関係インストール
 bun run dev          # 開発サーバー起動
 bun run build        # プロダクションビルド
+bun run test         # テスト実行
 bun run preview      # ビルド結果のプレビュー
 ```
 

@@ -106,6 +106,7 @@ describe('ShiftTable / ヘルプスタッフのシフト表表示', () => {
       date: '2025-01-06',
       timeSlot: 'morning',
       parkingSpot: null,
+      isLocked: false,
     }
     render(
       <ShiftTable
