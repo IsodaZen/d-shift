@@ -76,3 +76,58 @@ export const DEFAULT_PARKING_CONFIG: ParkingConfig = {
     { type: 'B', count: 1 },
   ],
 }
+
+// --- 最適化エンジン関連の型定義 ---
+
+/** 最適化エンジンの設定パラメータ */
+export interface OptimizationConfig {
+  /** 最大反復回数 */
+  maxIterations: number
+  /** 改善なしで早期終了するまでの連続反復回数 */
+  noImprovementLimit: number
+  /** 時間制限（ミリ秒） */
+  timeLimitMs: number
+}
+
+/** デフォルトの最適化設定 */
+export const DEFAULT_OPTIMIZATION_CONFIG: OptimizationConfig = {
+  maxIterations: 20000,
+  noImprovementLimit: 1000,
+  timeLimitMs: 8000,
+}
+
+/** 辞書式比較に使用する評価結果（値が小さいほど良い） */
+export interface EvalResult {
+  /** 評価基準1: 全(日,時間帯)の最大不足人数 */
+  shortfallPeak: number
+  /** 評価基準2: 通常スタッフの残余容量の母分散 */
+  fairnessVariance: number
+  /** 評価基準3: 各日の駐車場利用スタッフ数の最大値 */
+  parkingPeak: number
+}
+
+/** 最適化エンジンへの入力 */
+export interface OptimizerInput {
+  /** グリーディ生成で得た初期解 */
+  initialAssignments: ShiftAssignment[]
+  /** 通常スタッフ一覧 */
+  staff: Staff[]
+  /** ヘルプスタッフ一覧 */
+  helpStaff: HelpStaff[]
+  /** 希望休一覧 */
+  dayOffs: PreferredDayOff[]
+  /** 最適化対象の日付一覧（YYYY-MM-DD、昇順） */
+  periodDates: string[]
+  /** 日付・時間帯ごとの必要人数取得関数 */
+  getRequiredCount: (date: string, slot: TimeSlot) => number
+  /** 駐車場スポットの合計数 */
+  totalParkingSpots: number
+  /** 最適化設定（省略時はデフォルト値を使用） */
+  config?: Partial<OptimizationConfig>
+}
+
+/** Web Workerからメインスレッドへのメッセージ */
+export type WorkerMessage =
+  | { type: 'progress'; progress: number }
+  | { type: 'result'; assignments: ShiftAssignment[] }
+  | { type: 'error'; message: string }

@@ -4,6 +4,7 @@ import { addWeeks, subWeeks, startOfWeek, parseISO, format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { WeekNav } from '../components/WeekNav'
 import { ShiftTable } from '../components/ShiftTable'
+import { OptimizingOverlay } from '../components/OptimizingOverlay'
 import { useStaff } from '../hooks/useStaff'
 import { useAssignments } from '../hooks/useAssignments'
 import { useDayOffs } from '../hooks/useDayOffs'
@@ -12,9 +13,10 @@ import { useParkingConfig } from '../hooks/useParkingConfig'
 import { useHelpAlert } from '../hooks/useHelpAlert'
 import { useShiftPeriod } from '../hooks/useShiftPeriod'
 import { useHelpStaff } from '../hooks/useHelpStaff'
+import { useShiftOptimizer } from '../hooks/useShiftOptimizer'
 import { getWeekDates, getDefaultWeekStart } from '../utils/dateUtils'
 import { generateAutoShift } from '../utils/autoShiftGenerator'
-import { ALL_TIME_SLOTS, TIME_SLOT_LABELS, type TimeSlot } from '../types'
+import { ALL_TIME_SLOTS, TIME_SLOT_LABELS, type TimeSlot, type ShiftAssignment } from '../types'
 
 interface ShortageEntry {
   date: string
@@ -42,6 +44,7 @@ export function ShiftPage() {
   const { dayOffs } = useDayOffs()
   const { configs, getRequiredCount } = useShiftConfig()
   const { helpStaff } = useHelpStaff()
+  const { isOptimizing, progress, optimize } = useShiftOptimizer()
 
   const dates = getWeekDates(weekStart)
   const helpAlerts = useHelpAlert(dates, staff, assignments, dayOffs, configs, helpStaff)
@@ -50,6 +53,27 @@ export function ShiftPage() {
 
   const minDate = shiftPeriod ? parseISO(shiftPeriod.startDate) : undefined
   const maxDate = shiftPeriod ? parseISO(shiftPeriod.endDate) : undefined
+
+  /** 不足チェックを行い shortageEntries にセットする */
+  const computeAndSetShortages = (
+    finalAssignments: ShiftAssignment[],
+    lockedAssignments: ShiftAssignment[],
+  ) => {
+    const shortages: ShortageEntry[] = []
+    for (const date of periodDates) {
+      for (const slot of ALL_TIME_SLOTS) {
+        const required = getRequiredCount(date, slot)
+        if (required <= 0) continue
+        const assigned = [...lockedAssignments, ...finalAssignments].filter(
+          (a) => a.date === date && a.timeSlot === slot,
+        ).length
+        if (assigned < required) {
+          shortages.push({ date, slot, shortage: required - assigned })
+        }
+      }
+    }
+    setShortageEntries(shortages)
+  }
 
   const handleAutoGenerate = () => {
     const hasExisting = periodDates.some((d) => assignments.some((a) => a.date === d))
@@ -69,36 +93,49 @@ export function ShiftPage() {
     )
     // 固定アサイン一覧（remaining カウント算入に使用）
     const lockedAssignments = assignments.filter((a) => a.isLocked && periodDates.includes(a.date))
+    const allParkingSpots = getAllSpots()
 
-    const newAssignments = generateAutoShift({
+    // グリーディ生成（初期解）
+    const greedyAssignments = generateAutoShift({
       periodDates,
       staff,
       dayOffs,
       getRequiredCount,
-      allParkingSpots: getAllSpots(),
+      allParkingSpots,
       helpStaff,
       lockedStaffDates,
       lockedAssignments,
     })
-    bulkSetAssignments(newAssignments, periodDates)
+
     setShowConfirm(false)
 
-    // 不足チェック: 必要人数を満たせなかった日付・時間帯を収集
-    const shortages: ShortageEntry[] = []
-    for (const date of periodDates) {
-      for (const slot of ALL_TIME_SLOTS) {
-        const required = getRequiredCount(date, slot)
-        if (required <= 0) continue
-        // 固定アサインも含めて充足チェックする
-        const assigned = [...lockedAssignments, ...newAssignments].filter(
-          (a) => a.date === date && a.timeSlot === slot,
-        ).length
-        if (assigned < required) {
-          shortages.push({ date, slot, shortage: required - assigned })
-        }
-      }
-    }
-    setShortageEntries(shortages)
+    // Web Worker で最適化を実行
+    optimize(
+      {
+        initialAssignments: [...lockedAssignments, ...greedyAssignments],
+        staff,
+        helpStaff,
+        dayOffs,
+        periodDates,
+        getRequiredCount,
+        totalParkingSpots: allParkingSpots.length,
+      },
+      allParkingSpots,
+      // 最適化成功時
+      (optimizedAssignments) => {
+        // 固定アサインと最適化結果を統合して保存
+        const finalAssignments = optimizedAssignments.filter(
+          (a) => !a.isLocked,
+        )
+        bulkSetAssignments(finalAssignments, periodDates)
+        computeAndSetShortages(optimizedAssignments, [])
+      },
+      // 最適化失敗時（フォールバック: グリーディ結果を使用）
+      () => {
+        bulkSetAssignments(greedyAssignments, periodDates)
+        computeAndSetShortages(greedyAssignments, lockedAssignments)
+      },
+    )
   }
 
   if (staff.length === 0) {
@@ -126,7 +163,8 @@ export function ShiftPage() {
         {shiftPeriod && (
           <button
             onClick={handleAutoGenerate}
-            className="mr-3 px-3 py-1.5 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 whitespace-nowrap"
+            disabled={isOptimizing}
+            className="mr-3 px-3 py-1.5 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 whitespace-nowrap disabled:opacity-50"
           >
             自動生成
           </button>
@@ -144,6 +182,9 @@ export function ShiftPage() {
         onSetCellLocked={setCellLocked}
         getRequiredCount={getRequiredCount}
       />
+
+      {/* 最適化中ローディング表示 */}
+      <OptimizingOverlay isOptimizing={isOptimizing} progress={progress} />
 
       {/* 自動生成後の不足通知 */}
       {shortageEntries !== null && (
