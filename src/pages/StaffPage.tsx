@@ -13,7 +13,10 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import type { Staff } from '../types'
 import { TIME_SLOT_LABELS } from '../types'
 import { StaffForm } from '../components/StaffForm'
+import { DayOffCalendar } from '../components/DayOffCalendar'
 import { useStaff } from '../hooks/useStaff'
+import { useDayOffs } from '../hooks/useDayOffs'
+import { useShiftPeriod } from '../hooks/useShiftPeriod'
 
 // ソート可能なスタッフアイテムコンポーネント
 function SortableStaffItem({
@@ -21,11 +24,13 @@ function SortableStaffItem({
   isOver,
   onEdit,
   onDelete,
+  onDayOff,
 }: {
   staff: Staff
   isOver: boolean
   onEdit: (s: Staff) => void
   onDelete: (id: string) => void
+  onDayOff: (s: Staff) => void
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({ id: s.id })
 
@@ -60,6 +65,12 @@ function SortableStaffItem({
       </div>
       <div className="flex gap-2 shrink-0">
         <button
+          onClick={() => onDayOff(s)}
+          className="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded"
+        >
+          希望休
+        </button>
+        <button
           onClick={() => onEdit(s)}
           className="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded"
         >
@@ -78,13 +89,21 @@ function SortableStaffItem({
   )
 }
 
-type FormMode = { type: 'add' } | { type: 'edit'; staff: Staff } | null
+type FormMode = { type: 'add' } | { type: 'edit'; staff: Staff } | { type: 'dayoff'; staff: Staff } | null
 
 export function StaffPage() {
   const { staff, addStaff, updateStaff, deleteStaff, reorderStaff } = useStaff()
+  const { dayOffs, addDayOff, syncDayOffs } = useDayOffs()
+  const { isShiftPeriodSaved, getPeriodDates } = useShiftPeriod()
   const [mode, setMode] = useState<FormMode>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const navigate = useNavigate()
+
+  // 希望休管理 state
+  const [calendarSelectedDates, setCalendarSelectedDates] = useState<string[]>([])
+  const [syncMessage, setSyncMessage] = useState('')
+  const [dayOffDate, setDayOffDate] = useState('')
+  const [dayOffError, setDayOffError] = useState('')
 
   // 8px 以上動かしてからドラッグ開始（誤操作防止）
   const sensors = useSensors(
@@ -94,7 +113,7 @@ export function StaffPage() {
   )
 
   const handleDragOver = (event: DragOverEvent) => {
-    setOverId(event.over?.id as string ?? null)
+    setOverId(event.over ? String(event.over.id) : null)
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -116,6 +135,105 @@ export function StaffPage() {
       addStaff(data)
     }
     setMode(null)
+  }
+
+  const handleCalendarToggle = (date: string) => {
+    setSyncMessage('')
+    setCalendarSelectedDates((prev) =>
+      prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date],
+    )
+  }
+
+  const handleSyncDayOffs = () => {
+    if (mode?.type !== 'dayoff') return
+    const { added, removed } = syncDayOffs(mode.staff.id, calendarSelectedDates)
+    setSyncMessage(`${added}件を追加、${removed}件を削除しました`)
+  }
+
+  const handleAddDayOff = () => {
+    if (mode?.type !== 'dayoff') return
+    if (!dayOffDate) {
+      setDayOffError('日付を選択してください')
+      return
+    }
+    const ok = addDayOff(mode.staff.id, dayOffDate)
+    if (!ok) {
+      setDayOffError('すでに登録済みです')
+      return
+    }
+    setDayOffError('')
+    setDayOffDate('')
+  }
+
+  const openDayOffView = (s: Staff) => {
+    const registered = dayOffs.filter((d) => d.staffId === s.id).map((d) => d.date)
+    setCalendarSelectedDates(registered)
+    setSyncMessage('')
+    setDayOffDate('')
+    setDayOffError('')
+    setMode({ type: 'dayoff', staff: s })
+  }
+
+  // 希望休管理ビュー
+  if (mode?.type === 'dayoff') {
+    const periodDates = getPeriodDates()
+    return (
+      <div className="p-4">
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => setMode(null)}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            戻る
+          </button>
+          <h2 className="text-base font-semibold text-gray-800">{mode.staff.name} の希望休</h2>
+        </div>
+
+        {!isShiftPeriodSaved ? (
+          /* フォールバック: シフト期間未保存時は単一日付入力 */
+          <div className="bg-white border border-gray-200 rounded-xl p-3 mb-4">
+            <p className="text-sm font-medium text-gray-700 mb-3">希望休を登録</p>
+            <div className="space-y-2">
+              <label className="sr-only" htmlFor="dayoff-date-input">希望休日付</label>
+              <input
+                id="dayoff-date-input"
+                type="date"
+                value={dayOffDate}
+                onChange={(e) => setDayOffDate(e.target.value)}
+                aria-label="希望休日付"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+              {dayOffError && <p className="text-red-500 text-xs">{dayOffError}</p>}
+              <button
+                onClick={handleAddDayOff}
+                className="w-full bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-600"
+              >
+                登録
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* カレンダーモード: シフト期間保存済み */
+          <div className="bg-white border border-gray-200 rounded-xl p-3 mb-4">
+            <p className="text-sm font-medium text-gray-700 mb-3">希望休を登録</p>
+            {syncMessage && (
+              <p className="text-indigo-600 text-xs mb-2">{syncMessage}</p>
+            )}
+            <DayOffCalendar
+              periodDates={periodDates}
+              selectedDates={calendarSelectedDates}
+              onToggle={handleCalendarToggle}
+            />
+            <button
+              onClick={handleSyncDayOffs}
+              className="mt-3 w-full bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-600"
+            >
+              保存
+            </button>
+          </div>
+        )}
+      </div>
+    )
   }
 
   if (mode) {
@@ -172,6 +290,7 @@ export function StaffPage() {
                     isOver={overId === s.id}
                     onEdit={(s) => setMode({ type: 'edit', staff: s })}
                     onDelete={(id) => deleteStaff(id)}
+                    onDayOff={openDayOffView}
                   />
                 ))}
               </ul>

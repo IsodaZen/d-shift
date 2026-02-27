@@ -1,23 +1,20 @@
-// タスク5.1〜5.4, 6.1〜6.4: SettingsPage（シフト期間・シフト枠・駐車場・希望休設定・ヘルプスタッフ）
+// タスク5.1〜5.4, 6.1〜6.4: SettingsPage（シフト期間・シフト枠・駐車場・ヘルプスタッフ設定）
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useShiftConfig } from '../hooks/useShiftConfig'
 import { useParkingConfig } from '../hooks/useParkingConfig'
-import { useDayOffs } from '../hooks/useDayOffs'
-import { useStaff } from '../hooks/useStaff'
 import { useShiftPeriod } from '../hooks/useShiftPeriod'
 import { useHelpStaff } from '../hooks/useHelpStaff'
 import { ALL_TIME_SLOTS, TIME_SLOT_LABELS } from '../types'
 import { NumberStepper } from '../components/NumberStepper'
-import { DayOffCalendar } from '../components/DayOffCalendar'
 import { HelpStaffForm } from '../components/HelpStaffForm'
 import { HelpStaffAvailabilityCalendar } from '../components/HelpStaffAvailabilityCalendar'
 import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
-type Tab = 'period' | 'shift' | 'dayoff' | 'parking' | 'help-staff'
+type Tab = 'period' | 'shift' | 'parking' | 'help-staff'
 
-const VALID_TABS: Tab[] = ['period', 'shift', 'dayoff', 'parking', 'help-staff']
+const VALID_TABS: Tab[] = ['period', 'shift', 'parking', 'help-staff']
 
 export function SettingsPage() {
   const { tab: tabParam } = useParams<{ tab?: string }>()
@@ -28,8 +25,6 @@ export function SettingsPage() {
 
   const { getRequiredCount, setRequiredCount } = useShiftConfig()
   const { parkingConfig, updateSlotCount } = useParkingConfig()
-  const { dayOffs, addDayOff, syncDayOffs } = useDayOffs()
-  const { staff } = useStaff()
   const { shiftPeriod, setShiftPeriod, getPeriodDates, isShiftPeriodSaved } = useShiftPeriod()
   const { helpStaff, addHelpStaff, updateHelpStaff, deleteHelpStaff, updateAvailableDates } = useHelpStaff()
 
@@ -43,26 +38,7 @@ export function SettingsPage() {
   const [periodEnd, setPeriodEnd] = useState(shiftPeriod.endDate)
   const [periodError, setPeriodError] = useState('')
 
-  // 希望休登録フォーム（フォールバック）
-  const [dayOffStaffId, setDayOffStaffId] = useState('')
-  const [dayOffDate, setDayOffDate] = useState('')
-  const [dayOffError, setDayOffError] = useState('')
-
-  // 希望休カレンダーモード
-  const [calendarStaffId, setCalendarStaffId] = useState('')
-  const [calendarSelectedDates, setCalendarSelectedDates] = useState<string[]>([])
-  const [syncMessage, setSyncMessage] = useState('')
-
   const periodDates = getPeriodDates()
-
-  const handleCalendarStaffChange = (staffId: string) => {
-    setCalendarStaffId(staffId)
-    setSyncMessage('')
-    const registered = staffId
-      ? dayOffs.filter((d) => d.staffId === staffId).map((d) => d.date)
-      : []
-    setCalendarSelectedDates(registered)
-  }
 
   const handleTabChange = (tab: Tab) => {
     navigate(`/settings/${tab}`)
@@ -89,33 +65,6 @@ export function SettingsPage() {
     setShiftPeriod({ startDate: periodStart, endDate: periodEnd })
   }
 
-  const handleAddDayOff = () => {
-    if (!dayOffStaffId || !dayOffDate) {
-      setDayOffError('スタッフと日付を選択してください')
-      return
-    }
-    const ok = addDayOff(dayOffStaffId, dayOffDate)
-    if (!ok) {
-      setDayOffError('すでに登録済みです')
-      return
-    }
-    setDayOffError('')
-    setDayOffDate('')
-  }
-
-  const handleCalendarToggle = (date: string) => {
-    setSyncMessage('')
-    setCalendarSelectedDates((prev) =>
-      prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date],
-    )
-  }
-
-  const handleSyncDayOffs = () => {
-    if (!calendarStaffId) return
-    const { added, removed } = syncDayOffs(calendarStaffId, calendarSelectedDates)
-    setSyncMessage(`${added}件を追加、${removed}件を削除しました`)
-  }
-
   return (
     <div>
       {/* タブ切り替え */}
@@ -124,7 +73,6 @@ export function SettingsPage() {
           [
             { id: 'period', label: 'シフト期間' },
             { id: 'shift', label: 'シフト枠' },
-            { id: 'dayoff', label: '希望休' },
             { id: 'parking', label: '駐車場' },
             { id: 'help-staff', label: 'ヘルプスタッフ' },
           ] as { id: Tab; label: string }[]
@@ -242,117 +190,6 @@ export function SettingsPage() {
             >
               シフトを作成する →
             </button>
-          </div>
-        )}
-
-        {/* 希望休管理 */}
-        {activeTab === 'dayoff' && (
-          <div>
-            {/* フォールバック: シフト期間未保存時は単一日付入力 */}
-            {!isShiftPeriodSaved ? (
-              <div className="bg-white border border-gray-200 rounded-xl p-3 mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-3">希望休を登録</p>
-                <div className="space-y-2">
-                  <select
-                    value={dayOffStaffId}
-                    onChange={(e) => setDayOffStaffId(e.target.value)}
-                    aria-label="スタッフを選択"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  >
-                    <option value="">スタッフを選択</option>
-                    {staff.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                  <label className="sr-only" htmlFor="dayoff-date-input">希望休日付</label>
-                  <input
-                    id="dayoff-date-input"
-                    type="date"
-                    value={dayOffDate}
-                    onChange={(e) => setDayOffDate(e.target.value)}
-                    aria-label="希望休日付"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  />
-                  {dayOffError && <p className="text-red-500 text-xs">{dayOffError}</p>}
-                  <button
-                    onClick={handleAddDayOff}
-                    className="w-full bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-600"
-                  >
-                    登録
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* カレンダーモード: シフト期間保存済み */
-              <div className="mb-4">
-                <div className="bg-white border border-gray-200 rounded-xl p-3 mb-3">
-                  <p className="text-sm font-medium text-gray-700 mb-3">希望休を登録</p>
-                  <select
-                    value={calendarStaffId}
-                    onChange={(e) => handleCalendarStaffChange(e.target.value)}
-                    aria-label="スタッフを選択"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 mb-3"
-                  >
-                    <option value="">スタッフを選択</option>
-                    {staff.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-
-                  {calendarStaffId && (
-                    <>
-                      {syncMessage && (
-                        <p className="text-indigo-600 text-xs mb-2">{syncMessage}</p>
-                      )}
-                      <DayOffCalendar
-                        key={calendarStaffId}
-                        periodDates={periodDates}
-                        selectedDates={calendarSelectedDates}
-                        onToggle={handleCalendarToggle}
-                      />
-                      <button
-                        onClick={handleSyncDayOffs}
-                        className="mt-3 w-full bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-600"
-                      >
-                        保存
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* スタッフ別サマリー */}
-            {(() => {
-              const summaryItems = staff
-                .map((s) => {
-                  const count = dayOffs.filter(
-                    (d) => d.staffId === s.id && periodDates.includes(d.date),
-                  ).length
-                  return { staff: s, count }
-                })
-                .filter((item) => item.count > 0)
-
-              if (summaryItems.length === 0) {
-                return (
-                  <p className="text-center text-gray-400 text-sm py-6">登録された希望休はありません</p>
-                )
-              }
-
-              return (
-                <ul className="space-y-2">
-                  {summaryItems.map(({ staff: s, count }) => (
-                    <li
-                      key={s.id}
-                      className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-3 py-2"
-                    >
-                      <span className="text-sm text-gray-800">{s.name}</span>
-                      <span className="text-sm text-indigo-600 font-medium">{count}日</span>
-                    </li>
-                  ))}
-                </ul>
-              )
-            })()}
           </div>
         )}
 

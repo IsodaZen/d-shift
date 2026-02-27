@@ -116,6 +116,141 @@ describe('StaffPage フロー誘導CTA', () => {
   })
 })
 
+describe('StaffPage 希望休ビュー', () => {
+  const staffData = JSON.stringify([
+    {
+      id: 's1',
+      name: '山田',
+      maxWeeklyShifts: 5,
+      availableSlots: ['morning'],
+      usesParking: false,
+    },
+  ])
+
+  it('1.1 各スタッフアイテムに「希望休」ボタンが表示される', () => {
+    localStorage.setItem('d-shift:staff', staffData)
+    renderStaffPage()
+    expect(screen.getByRole('button', { name: '希望休' })).toBeInTheDocument()
+  })
+
+  it('1.2 「希望休」ボタンをクリックすると希望休管理ビューが表示され、スタッフ一覧は非表示になる', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    // スタッフ一覧（list）は非表示
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    // 希望休管理ビューの見出しが表示される
+    expect(screen.getByText('山田 の希望休')).toBeInTheDocument()
+  })
+
+  it('1.3 希望休管理ビューの見出しが「{スタッフ名} の希望休」になる', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    expect(screen.getByText('山田 の希望休')).toBeInTheDocument()
+  })
+
+  it('1.4 「戻る」ボタンをクリックするとスタッフ一覧ビューに戻る', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    await user.click(screen.getByRole('button', { name: '戻る' }))
+    // スタッフ一覧が再表示される
+    expect(screen.getByRole('list')).toBeInTheDocument()
+  })
+
+  it('1.5 希望休管理ビューにスタッフ選択ドロップダウンが表示されない', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('1.6 希望休管理ビュー表示中はフロー誘導CTA「シフト期間を設定する →」が表示されない', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    expect(
+      screen.queryByRole('button', { name: 'シフト期間を設定する →' }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('StaffPage 希望休管理ビュー コンテンツ', () => {
+  const staffData = JSON.stringify([
+    {
+      id: 's1',
+      name: '山田',
+      maxWeeklyShifts: 5,
+      availableSlots: ['morning'],
+      usesParking: false,
+    },
+  ])
+  const SHIFT_PERIOD = JSON.stringify({ startDate: '2025-02-01', endDate: '2025-02-10' })
+
+  it('3.1 シフト期間未保存時はフォールバックUI（日付入力フィールド）が表示される', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    expect(screen.getByLabelText('希望休日付')).toBeInTheDocument()
+    expect(screen.queryByText(/\d+年\d+月/)).not.toBeInTheDocument()
+  })
+
+  it('3.2 シフト期間保存済み時はカレンダーUIが表示される', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    localStorage.setItem('d-shift:shift-period', SHIFT_PERIOD)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    expect(screen.getByText('2025年2月')).toBeInTheDocument()
+  })
+
+  it('3.3 カレンダーで日付をトグル選択できる', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    localStorage.setItem('d-shift:shift-period', SHIFT_PERIOD)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    // 3日をクリック（選択）
+    await user.click(screen.getByRole('button', { name: /^3$/ }))
+    expect(screen.getByRole('button', { name: /^3$/ }).className).toMatch(/bg-indigo-500/)
+    // もう一度クリック（解除）
+    await user.click(screen.getByRole('button', { name: /^3$/ }))
+    expect(screen.getByRole('button', { name: /^3$/ }).className).not.toMatch(/bg-indigo-500/)
+  })
+
+  it('3.4 「保存」ボタンをクリックすると syncDayOffs が呼ばれる', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    localStorage.setItem('d-shift:shift-period', SHIFT_PERIOD)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    // 3日を選択
+    await user.click(screen.getByRole('button', { name: /^3$/ }))
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    // syncDayOffsが呼ばれた → localStorage に保存される
+    const stored = JSON.parse(localStorage.getItem('d-shift:day-offs') ?? '[]')
+    expect(stored.some((d: { staffId: string }) => d.staffId === 's1')).toBe(true)
+  })
+
+  it('3.5 保存後に結果メッセージが表示される', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('d-shift:staff', staffData)
+    localStorage.setItem('d-shift:shift-period', SHIFT_PERIOD)
+    renderStaffPage()
+    await user.click(screen.getByRole('button', { name: '希望休' }))
+    await user.click(screen.getByRole('button', { name: /^3$/ }))
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    expect(screen.getByText(/件を追加、.*件を削除しました/)).toBeInTheDocument()
+  })
+})
+
 describe('StaffPage D&D ドラッグ&ドロップ', () => {
   const threeStaff = JSON.stringify([
     { id: 's1', name: 'スタッフA', maxWeeklyShifts: 5, availableSlots: ['morning'], usesParking: false },
