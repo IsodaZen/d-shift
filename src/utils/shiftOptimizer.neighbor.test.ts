@@ -215,7 +215,7 @@ describe('generateNeighbor + applyOperation', () => {
 describe('undoOperation', () => {
   it('Toggle ONを取り消せる', () => {
     const staff = [makeStaff({ id: 's1' })]
-    const { state, lockedWorking } = toInternalState({
+    const { state, lockedWorking: _lockedWorking } = toInternalState({
       initialAssignments: [],
       staff,
       helpStaff: [],

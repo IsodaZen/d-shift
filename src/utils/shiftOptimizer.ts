@@ -2,10 +2,6 @@
 import { parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
 import type {
   ShiftAssignment,
-  Staff,
-  HelpStaff,
-  PreferredDayOff,
-  TimeSlot,
   EvalResult,
   OptimizationConfig,
   OptimizerInput,
