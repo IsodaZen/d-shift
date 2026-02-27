@@ -1,4 +1,6 @@
 // 最適化中のローディングオーバーレイコンポーネント
+import React from 'react'
+
 interface OptimizingOverlayProps {
   isOptimizing: boolean
   progress: number
@@ -8,7 +10,7 @@ interface OptimizingOverlayProps {
  * シフト最適化中にUIをオーバーレイするローディング表示コンポーネント。
  * プログレスバーと進捗率を表示する。
  */
-export function OptimizingOverlay({ isOptimizing, progress }: OptimizingOverlayProps) {
+export const OptimizingOverlay: React.FC<OptimizingOverlayProps> = ({ isOptimizing, progress }) => {
   if (!isOptimizing) return null
 
   return (

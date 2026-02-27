@@ -334,7 +334,6 @@ export function isValidMove(
     // 移動元を仮に外した状態でカウント（同週内の移動は出勤数が変わらない）
     const fromDate = dates[fromDateIndex]
     const fromWeekStart = startOfWeek(parseISO(fromDate), { weekStartsOn: 1 })
-    const fromWeekEnd = endOfWeek(parseISO(fromDate), { weekStartsOn: 1 })
     const toWeekStart = startOfWeek(parseISO(toDate), { weekStartsOn: 1 })
     const toWeekEnd = endOfWeek(parseISO(toDate), { weekStartsOn: 1 })
 
@@ -354,7 +353,6 @@ export function isValidMove(
       if (toWeekCount >= info.maxWeeklyShifts) return false
     }
     // 同週内の移動の場合、出勤数は変わらないため上限を超えない
-    void fromWeekEnd // suppress unused warning
   }
 
   // 駐車場チェック（移動先の日）

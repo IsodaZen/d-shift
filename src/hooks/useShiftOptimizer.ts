@@ -71,19 +71,16 @@ export function useShiftOptimizer(): UseShiftOptimizerResult {
         onError?.()
       }
 
-      // getRequiredCount は関数なので、Worker に送るために事前計算した形式に変換
-      // Web Worker は関数を postMessage できないため、シリアライズ可能な形式で送る
-      const serializableInput = {
-        ...input,
-        // getRequiredCount は Worker 内では再現できないため、事前計算したマップとして送る
-        getRequiredCount: undefined,
-        requiredCountMap: buildRequiredCountMap(input),
-      }
+      // getRequiredCount は関数をシリアライズできないため、事前計算したマップに変換して送る
+      // Worker 内でマップから getRequiredCount を復元する
+      const requiredCountMap = buildRequiredCountMap(input)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { getRequiredCount: _ignored, ...serializableInput } = input
 
       worker.postMessage({
-        input: { ...serializableInput, getRequiredCount: null },
+        input: serializableInput,
         allParkingSpots,
-        requiredCountMap: buildRequiredCountMap(input),
+        requiredCountMap,
       })
     },
     [],

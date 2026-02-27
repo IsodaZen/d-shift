@@ -1,5 +1,5 @@
 // シフト表ページ
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { addWeeks, subWeeks, startOfWeek, parseISO, format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { WeekNav } from '../components/WeekNav'
@@ -55,25 +55,25 @@ export function ShiftPage() {
   const maxDate = shiftPeriod ? parseISO(shiftPeriod.endDate) : undefined
 
   /** 不足チェックを行い shortageEntries にセットする */
-  const computeAndSetShortages = (
-    finalAssignments: ShiftAssignment[],
-    lockedAssignments: ShiftAssignment[],
-  ) => {
-    const shortages: ShortageEntry[] = []
-    for (const date of periodDates) {
-      for (const slot of ALL_TIME_SLOTS) {
-        const required = getRequiredCount(date, slot)
-        if (required <= 0) continue
-        const assigned = [...lockedAssignments, ...finalAssignments].filter(
-          (a) => a.date === date && a.timeSlot === slot,
-        ).length
-        if (assigned < required) {
-          shortages.push({ date, slot, shortage: required - assigned })
+  const computeAndSetShortages = useCallback(
+    (finalAssignments: ShiftAssignment[], lockedAssignments: ShiftAssignment[]) => {
+      const shortages: ShortageEntry[] = []
+      for (const date of periodDates) {
+        for (const slot of ALL_TIME_SLOTS) {
+          const required = getRequiredCount(date, slot)
+          if (required <= 0) continue
+          const assigned = [...lockedAssignments, ...finalAssignments].filter(
+            (a) => a.date === date && a.timeSlot === slot,
+          ).length
+          if (assigned < required) {
+            shortages.push({ date, slot, shortage: required - assigned })
+          }
         }
       }
-    }
-    setShortageEntries(shortages)
-  }
+      setShortageEntries(shortages)
+    },
+    [periodDates, getRequiredCount],
+  )
 
   const handleAutoGenerate = () => {
     const hasExisting = periodDates.some((d) => assignments.some((a) => a.date === d))
@@ -84,7 +84,7 @@ export function ShiftPage() {
     }
   }
 
-  const applyAutoShift = () => {
+  const applyAutoShift = useCallback(() => {
     // 固定アサインがあるスタッフ・日付を収集する
     const lockedStaffDates = new Set(
       assignments
@@ -123,12 +123,12 @@ export function ShiftPage() {
       allParkingSpots,
       // 最適化成功時
       (optimizedAssignments) => {
-        // 固定アサインと最適化結果を統合して保存
+        // 固定アサインを除いた結果のみ保存（bulkSetAssignments は固定アサインを自動保持する）
         const finalAssignments = optimizedAssignments.filter(
           (a) => !a.isLocked,
         )
         bulkSetAssignments(finalAssignments, periodDates)
-        computeAndSetShortages(optimizedAssignments, [])
+        computeAndSetShortages(finalAssignments, lockedAssignments)
       },
       // 最適化失敗時（フォールバック: グリーディ結果を使用）
       () => {
@@ -136,7 +136,7 @@ export function ShiftPage() {
         computeAndSetShortages(greedyAssignments, lockedAssignments)
       },
     )
-  }
+  }, [assignments, periodDates, staff, dayOffs, helpStaff, getRequiredCount, getAllSpots, optimize, bulkSetAssignments, computeAndSetShortages])
 
   if (staff.length === 0) {
     return (

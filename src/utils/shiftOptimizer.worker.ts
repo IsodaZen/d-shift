@@ -2,22 +2,32 @@
 import { optimizeShift } from './shiftOptimizer'
 import type { OptimizerInput, WorkerMessage } from '../types'
 
+/** Worker に送信するメッセージの型（getRequiredCount を除き requiredCountMap で代替） */
+type WorkerInput = {
+  input: Omit<OptimizerInput, 'getRequiredCount'>
+  allParkingSpots: string[]
+  requiredCountMap: Record<string, number>
+}
+
 /**
  * Web Worker のメッセージハンドラ。
  * メインスレッドから OptimizerInput を受け取り、最適化を実行する。
  *
- * 入力メッセージ: { input: OptimizerInput; allParkingSpots: string[] }
+ * 入力メッセージ: { input: Omit<OptimizerInput, 'getRequiredCount'>, allParkingSpots, requiredCountMap }
  * 出力メッセージ:
  *   - { type: 'progress', progress: number } — 進捗通知
  *   - { type: 'result', assignments: ShiftAssignment[] } — 完了通知
  *   - { type: 'error', message: string } — エラー通知
  */
-self.onmessage = (
-  event: MessageEvent<{ input: OptimizerInput; allParkingSpots: string[] }>,
-) => {
-  const { input, allParkingSpots } = event.data
+self.onmessage = (event: MessageEvent<WorkerInput>) => {
+  const { input, allParkingSpots, requiredCountMap } = event.data
+  // getRequiredCount は関数をシリアライズできないため、requiredCountMap から復元する
+  const restoredInput: OptimizerInput = {
+    ...input,
+    getRequiredCount: (date, slot) => requiredCountMap[`${date}_${slot}`] ?? 0,
+  }
   try {
-    const assignments = optimizeShift(input, allParkingSpots, (progress) => {
+    const assignments = optimizeShift(restoredInput, allParkingSpots, (progress) => {
       const msg: WorkerMessage = { type: 'progress', progress }
       self.postMessage(msg)
     })

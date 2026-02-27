@@ -1,11 +1,7 @@
 // --- spec: shift-optimization / Web Worker ラッパー ---
-// Web WorkerはJSDOM環境では動作しないため、Worker内ロジックのユニットテストを行う
-import { describe, it, expect, vi } from 'vitest'
+// Web WorkerはJSDOM環境では動作しないため、Worker入出力の型とデータ変換ロジックを検証する
+import { describe, it, expect } from 'vitest'
 import type { OptimizerInput, WorkerMessage } from '../types'
-
-// Worker内部のメッセージハンドラ処理をテスト
-// 実際のWorkerはブラウザでのみ動作するため、
-// ここではWorkerが送信すべきメッセージの型と内容を検証する
 
 describe('WorkerMessage 型', () => {
   it('progress メッセージは 0〜100 の数値を持つ', () => {
@@ -34,63 +30,76 @@ describe('WorkerMessage 型', () => {
   })
 })
 
-// Worker の onmessage ハンドラをテストするためのモック
-describe('Worker入力形式 (OptimizerInput)', () => {
-  it('OptimizerInput の構造が正しい', () => {
+describe('requiredCountMap を使った getRequiredCount の再構築', () => {
+  it('buildRequiredCountMap がすべての日付とスロットのマップを生成する', () => {
+    // Worker に送信する requiredCountMap の構築ロジックを検証する
     const input: OptimizerInput = {
       initialAssignments: [],
       staff: [],
       helpStaff: [],
       dayOffs: [],
-      periodDates: [],
-      getRequiredCount: () => 0,
+      periodDates: ['2025-01-06', '2025-01-07'],
+      getRequiredCount: (_date, slot) => (slot === 'morning' ? 3 : slot === 'afternoon' ? 2 : 1),
       totalParkingSpots: 5,
-      config: { maxIterations: 100 },
     }
-    expect(input.totalParkingSpots).toBe(5)
-    expect(input.config?.maxIterations).toBe(100)
-  })
-})
 
-// useShiftOptimizer フックのモックテスト（Web Worker呼び出しのロジック検証）
-describe('useShiftOptimizer フック ロジック', () => {
-  it('最適化実行前は isOptimizing=false', () => {
-    // フックの初期状態のロジックテスト
-    let isOptimizing = false
-    expect(isOptimizing).toBe(false)
-  })
-
-  it('progress が 0〜100 の範囲で更新される', () => {
-    let progress = 0
-    const setProgress = (p: number) => { progress = p }
-
-    // 範囲内の更新
-    setProgress(50)
-    expect(progress).toBeGreaterThanOrEqual(0)
-    expect(progress).toBeLessThanOrEqual(100)
-
-    setProgress(100)
-    expect(progress).toBe(100)
-  })
-
-  it('onProgress コールバックが呼ばれる', () => {
-    const onProgress = vi.fn()
-    const messages: WorkerMessage[] = [
-      { type: 'progress', progress: 25 },
-      { type: 'progress', progress: 50 },
-      { type: 'progress', progress: 75 },
-      { type: 'result', assignments: [] },
-    ]
-
-    // プログレスメッセージのシミュレーション
-    for (const msg of messages) {
-      if (msg.type === 'progress') {
-        onProgress(msg.progress)
+    // requiredCountMap の構築（useShiftOptimizer.ts の buildRequiredCountMap と同じロジック）
+    const map: Record<string, number> = {}
+    for (const date of input.periodDates) {
+      for (const slot of ['morning', 'afternoon', 'evening'] as const) {
+        map[`${date}_${slot}`] = input.getRequiredCount(date, slot)
       }
     }
 
-    expect(onProgress).toHaveBeenCalledTimes(3)
-    expect(onProgress).toHaveBeenCalledWith(25)
-    expect(onProgress).toHaveBeenCalledWith(75)
+    // すべての組み合わせが存在する
+    expect(map['2025-01-06_morning']).toBe(3)
+    expect(map['2025-01-06_afternoon']).toBe(2)
+    expect(map['2025-01-06_evening']).toBe(1)
+    expect(map['2025-01-07_morning']).toBe(3)
+    expect(Object.keys(map)).toHaveLength(6)
+  })
+
+  it('requiredCountMap から getRequiredCount を復元できる', () => {
+    // Worker 内での復元ロジックを検証する
+    const requiredCountMap: Record<string, number> = {
+      '2025-01-06_morning': 2,
+      '2025-01-06_afternoon': 1,
+      '2025-01-06_evening': 0,
+    }
+
+    // Worker 内の復元ロジック
+    const getRequiredCount = (date: string, slot: string) =>
+      requiredCountMap[`${date}_${slot}`] ?? 0
+
+    expect(getRequiredCount('2025-01-06', 'morning')).toBe(2)
+    expect(getRequiredCount('2025-01-06', 'afternoon')).toBe(1)
+    expect(getRequiredCount('2025-01-06', 'evening')).toBe(0)
+    // マップにない組み合わせはデフォルト値 0 を返す
+    expect(getRequiredCount('2025-01-07', 'morning')).toBe(0)
+  })
+
+  it('getRequiredCount の値が変換前後で一致する', () => {
+    // 元の関数 → マップ → 復元した関数 の等価性を検証する
+    const dates = ['2025-01-06', '2025-01-07']
+    const slots = ['morning', 'afternoon', 'evening'] as const
+    const originalFn = (_date: string, slot: string) => (slot === 'morning' ? 2 : 0)
+
+    // シリアライズ
+    const map: Record<string, number> = {}
+    for (const date of dates) {
+      for (const slot of slots) {
+        map[`${date}_${slot}`] = originalFn(date, slot)
+      }
+    }
+
+    // 復元
+    const restoredFn = (date: string, slot: string) => map[`${date}_${slot}`] ?? 0
+
+    // すべての組み合わせで等価
+    for (const date of dates) {
+      for (const slot of slots) {
+        expect(restoredFn(date, slot)).toBe(originalFn(date, slot))
+      }
+    }
   })
 })

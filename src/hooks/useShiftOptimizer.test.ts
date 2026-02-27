@@ -134,4 +134,47 @@ describe('useShiftOptimizer', () => {
     expect(result.current.isOptimizing).toBe(false)
     expect(onError).toHaveBeenCalled()
   })
+
+  it('Worker.onerror イベントでフォールバックが呼ばれる', async () => {
+    // Worker.onerror（ネットワーク障害やWorkerロード失敗など）でもエラーハンドラが呼ばれる
+    const onError = vi.fn()
+    const { result } = renderHook(() => useShiftOptimizer())
+
+    act(() => {
+      result.current.optimize(makeInput(), [], vi.fn(), onError)
+    })
+
+    act(() => {
+      mockWorkerInstance.simulateError('Worker load error')
+    })
+
+    expect(result.current.isOptimizing).toBe(false)
+    expect(onError).toHaveBeenCalled()
+  })
+
+  it('optimize 呼び出し時に requiredCountMap を含むメッセージを Worker に送信する', () => {
+    const { result } = renderHook(() => useShiftOptimizer())
+    const input: OptimizerInput = {
+      initialAssignments: [],
+      staff: [],
+      helpStaff: [],
+      dayOffs: [],
+      periodDates: ['2025-01-06'],
+      getRequiredCount: (_date, slot) => (slot === 'morning' ? 2 : 0),
+      totalParkingSpots: 5,
+    }
+
+    act(() => {
+      result.current.optimize(input, ['A1'], vi.fn())
+    })
+
+    // Worker に送信されたメッセージに requiredCountMap が含まれる
+    expect(mockPostMessage).toHaveBeenCalledTimes(1)
+    const sentMessage = mockPostMessage.mock.calls[0][0]
+    expect(sentMessage).toHaveProperty('requiredCountMap')
+    expect(sentMessage.requiredCountMap['2025-01-06_morning']).toBe(2)
+    expect(sentMessage.requiredCountMap['2025-01-06_afternoon']).toBe(0)
+    // getRequiredCount 関数自体は送信されない
+    expect(sentMessage.input).not.toHaveProperty('getRequiredCount')
+  })
 })
