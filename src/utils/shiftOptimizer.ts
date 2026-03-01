@@ -34,7 +34,7 @@ interface StaffInfo {
   usesParking: boolean
   /** 出勤可能な時間帯のインデックス（0=morning,1=afternoon,2=evening）*/
   availableSlotIndices: number[]
-  /** 通常スタッフの週上限合計（期間内週数×週上限）。ヘルプは0 */
+  /** 通常スタッフの調整済み上限（期間内週数×週上限 - 期間内希望休日数）。最小0。ヘルプは0 */
   weeklyCapacity: number
   /** 希望休の日付セット */
   preferredDayOffDates: Set<string>
@@ -49,7 +49,7 @@ export interface EvaluateParams {
   working: boolean[][]
   isRegularStaff: boolean[]
   staffIsParking: boolean[]
-  /** 期間内の週上限合計（通常スタッフのみ、ヘルプは任意） */
+  /** 通常スタッフの調整済み上限（週上限合計 - 期間内希望休日数、最小0）。ヘルプは任意 */
   weeklyCapacity: number[]
   /** staffSlots[i]: スタッフiの出勤可能スロットインデックスリスト */
   staffSlots: number[][]
@@ -480,15 +480,23 @@ export function toInternalState(input: OptimizerInput): {
 } {
   const { initialAssignments, staff, helpStaff, dayOffs, periodDates, getRequiredCount } = input
 
+  // 全スタッフ共通の値を事前計算（ループ外で一度だけ計算）
+  const weeks = getDistinctWeeks(periodDates)
+  const periodDatesSet = new Set(periodDates)
+
   // 全スタッフリスト（通常 + ヘルプ）
   const allStaffEntries: StaffInfo[] = [
     ...staff.map((s) => {
-      // 期間内の週数を計算して週上限合計を求める
-      const weeks = getDistinctWeeks(periodDates)
-      const weeklyCapacity = weeks * s.maxWeeklyShifts
+      // 希望休情報（期間内希望休日数の算出に使用）
       const preferredDayOffDates = new Set(
         dayOffs.filter((d) => d.staffId === s.id).map((d) => d.date),
       )
+      // 期間内の希望休日数（期間外の希望休は除外）
+      const preferredDayOffCountInPeriod = [...preferredDayOffDates].filter((date) =>
+        periodDatesSet.has(date),
+      ).length
+      // 希望休を考慮した調整済み上限（最小0）
+      const weeklyCapacity = Math.max(0, weeks * s.maxWeeklyShifts - preferredDayOffCountInPeriod)
       return {
         id: s.id,
         isHelp: false,

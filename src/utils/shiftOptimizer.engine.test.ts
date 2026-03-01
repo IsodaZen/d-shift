@@ -108,6 +108,100 @@ describe('toInternalState', () => {
 
     expect(state.working[0][0]).toBe(false)
   })
+
+  // --- 調整済み上限（希望休考慮）のテスト ---
+
+  it('希望休なしの場合、weeklyCapacityは週上限合計（週数×maxWeeklyShifts）と一致する', () => {
+    // 仕様シナリオ「希望休のないスタッフは週上限合計がそのまま調整済み上限として使われる」
+    // maxWeeklyShifts=3, 期間=4週(28日) → adjustedCapacity = 4 × 3 - 0 = 12
+    const staff = [makeStaff({ id: 's1', maxWeeklyShifts: 3 })]
+    const dates = Array.from({ length: 28 }, (_, i) => {
+      const d = new Date(2025, 0, 6 + i)
+      return d.toISOString().slice(0, 10)
+    }) // 2025-01-06（月）〜 2025-02-02（日）= 4週間
+    const input: OptimizerInput = {
+      initialAssignments: [],
+      staff,
+      helpStaff: [],
+      dayOffs: [], // 希望休なし
+      periodDates: dates,
+      getRequiredCount: () => 1,
+      totalParkingSpots: 0,
+    }
+    const { evalParams } = toInternalState(input)
+    // 4週 × 3 - 0 = 12
+    expect(evalParams.weeklyCapacity[0]).toBe(12)
+  })
+
+  it('期間内の希望休3日分がweeklyCapacityから差し引かれる', () => {
+    // maxWeeklyShifts=5, 期間=4週(28日) → 基礎容量=20（4週×5）
+    // 希望休3日（すべて期間内）→ adjustedCapacity = 20 - 3 = 17
+    const staff = [makeStaff({ id: 's1', maxWeeklyShifts: 5 })]
+    const dates = Array.from({ length: 28 }, (_, i) => {
+      const d = new Date(2025, 0, 6 + i)
+      return d.toISOString().slice(0, 10)
+    }) // 2025-01-06（月）〜 2025-02-02（日）= 4週間
+    const input: OptimizerInput = {
+      initialAssignments: [],
+      staff,
+      helpStaff: [],
+      dayOffs: [
+        { id: 'd1', staffId: 's1', date: '2025-01-06' },
+        { id: 'd2', staffId: 's1', date: '2025-01-07' },
+        { id: 'd3', staffId: 's1', date: '2025-01-08' },
+      ],
+      periodDates: dates,
+      getRequiredCount: () => 1,
+      totalParkingSpots: 0,
+    }
+    const { evalParams } = toInternalState(input)
+    // 4週 × 5 - 3 = 17
+    expect(evalParams.weeklyCapacity[0]).toBe(17)
+  })
+
+  it('期間外の希望休はweeklyCapacityの計算に含まれない', () => {
+    // 仕様シナリオを簡略化した等価ケース（1週・週上限5日）
+    // maxWeeklyShifts=5, 期間=1週(7日, 2025-01-06月〜01-12日) → 基礎容量=5
+    // 希望休1日（期間外: 2025-02-01）→ adjustedCapacity = 5 - 0 = 5（期間外は無視）
+    const staff = [makeStaff({ id: 's1', maxWeeklyShifts: 5 })]
+    const dates = ['2025-01-06', '2025-01-07', '2025-01-08', '2025-01-09', '2025-01-10', '2025-01-11', '2025-01-12']
+    const input: OptimizerInput = {
+      initialAssignments: [],
+      staff,
+      helpStaff: [],
+      dayOffs: [{ id: 'd1', staffId: 's1', date: '2025-02-01' }], // 期間外
+      periodDates: dates,
+      getRequiredCount: () => 1,
+      totalParkingSpots: 0,
+    }
+    const { evalParams } = toInternalState(input)
+    // 1週 × 5 - 0（期間外希望休は除外）= 5
+    expect(evalParams.weeklyCapacity[0]).toBe(5)
+  })
+
+  it('希望休数が週上限合計を超えてもweeklyCapacityは0以上になる', () => {
+    // maxWeeklyShifts=1, 期間=1週(7日, 2025-01-06月〜01-12日) → 基礎容量=1
+    // 希望休5日（期間内）→ 1 - 5 = -4 → Math.max(0, -4) = 0
+    const staff = [makeStaff({ id: 's1', maxWeeklyShifts: 1 })]
+    const dates = ['2025-01-06', '2025-01-07', '2025-01-08', '2025-01-09', '2025-01-10', '2025-01-11', '2025-01-12']
+    const input: OptimizerInput = {
+      initialAssignments: [],
+      staff,
+      helpStaff: [],
+      dayOffs: [
+        { id: 'd1', staffId: 's1', date: '2025-01-06' },
+        { id: 'd2', staffId: 's1', date: '2025-01-07' },
+        { id: 'd3', staffId: 's1', date: '2025-01-08' },
+        { id: 'd4', staffId: 's1', date: '2025-01-09' },
+        { id: 'd5', staffId: 's1', date: '2025-01-10' },
+      ],
+      periodDates: dates,
+      getRequiredCount: () => 1,
+      totalParkingSpots: 0,
+    }
+    const { evalParams } = toInternalState(input)
+    expect(evalParams.weeklyCapacity[0]).toBe(0)
+  })
 })
 
 // ---------------------------------------------------------------------------

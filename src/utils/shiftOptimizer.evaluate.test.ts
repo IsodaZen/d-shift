@@ -186,4 +186,31 @@ describe('evaluate', () => {
     // 0日目: 2人、他は0 → peak = 2
     expect(result.parkingPeak).toBe(2)
   })
+
+  // --- 調整済み上限（希望休考慮）の公平性テスト ---
+
+  it('希望休を差し引いた調整済み上限で残余容量が等しければ母分散が0になる', () => {
+    // スタッフA: 調整済み上限=17（週上限合計20 - 希望休3日）、実出勤10日 → 残余=7
+    // スタッフB: 調整済み上限=20（希望休なし）、実出勤13日 → 残余=7
+    // → 残余容量 [7, 7], 母分散=0
+    const dates = Array.from({ length: 20 }, (_, i) => {
+      const d = new Date(2025, 0, 6 + i)
+      return d.toISOString().slice(0, 10)
+    })
+    const working: boolean[][] = [
+      Array.from({ length: 20 }, (_, i) => i < 10),  // スタッフA: 10日出勤
+      Array.from({ length: 20 }, (_, i) => i < 13),  // スタッフB: 13日出勤
+    ]
+    const params = {
+      working,
+      isRegularStaff: [true, true],
+      staffIsParking: [false, false],
+      weeklyCapacity: [17, 20],  // 調整済み上限（希望休3日を差し引き済みのA）
+      staffSlots: [[0], [0]],
+      dates,
+      requiredCounts: Array.from({ length: 20 }, () => [1, 0, 0]),
+    }
+    const result = evaluate(params)
+    expect(result.fairnessVariance).toBeCloseTo(0, 5)
+  })
 })
