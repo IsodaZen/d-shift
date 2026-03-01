@@ -102,9 +102,11 @@ export interface EvalResult {
   shortfallPeak: number
   /** 評価基準2: 全(日,時間帯)の不足人数合計（Σ max(0, requiredCount - アサイン人数)、requiredCount>0のペアのみ） */
   shortfallTotal: number
-  /** 評価基準3: 通常スタッフの残余容量の母分散 */
+  /** 評価基準3: ヘルプスタッフが出勤している（スタッフ,日付）ペアの合計数 */
+  helpStaffTotal: number
+  /** 評価基準4: 通常スタッフの残余容量の母分散 */
   fairnessVariance: number
-  /** 評価基準4: 各日の駐車場利用スタッフ数の最大値 */
+  /** 評価基準5: 各日の駐車場利用スタッフ数の最大値 */
   parkingPeak: number
 }
 

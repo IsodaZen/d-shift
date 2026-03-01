@@ -91,7 +91,17 @@ export function evaluate(params: EvaluateParams): EvalResult {
     }
   }
 
-  // --- 評価基準3: 公平性（残余容量の母分散）---
+  // --- 評価基準3: ヘルプスタッフ出勤日数合計 ---
+  let helpStaffTotal = 0
+  for (let i = 0; i < numStaff; i++) {
+    if (!isRegularStaff[i]) {
+      for (let d = 0; d < numDates; d++) {
+        if (working[i][d]) helpStaffTotal++
+      }
+    }
+  }
+
+  // --- 評価基準4: 公平性（残余容量の母分散）---
   // 通常スタッフのみ対象
   const regularResiduals: number[] = []
   for (let i = 0; i < numStaff; i++) {
@@ -109,7 +119,7 @@ export function evaluate(params: EvaluateParams): EvalResult {
       regularResiduals.reduce((acc, r) => acc + (r - mean) ** 2, 0) / regularResiduals.length
   }
 
-  // --- 評価基準4: 駐車場ピーク ---
+  // --- 評価基準5: 駐車場ピーク ---
   let parkingPeak = 0
   for (let d = 0; d < numDates; d++) {
     let parkingCount = 0
@@ -121,7 +131,7 @@ export function evaluate(params: EvaluateParams): EvalResult {
     if (parkingCount > parkingPeak) parkingPeak = parkingCount
   }
 
-  return { shortfallPeak, shortfallTotal, fairnessVariance, parkingPeak }
+  return { shortfallPeak, shortfallTotal, helpStaffTotal, fairnessVariance, parkingPeak }
 }
 
 /**
@@ -134,6 +144,9 @@ export function isBetter(candidate: EvalResult, current: EvalResult): boolean {
   }
   if (candidate.shortfallTotal !== current.shortfallTotal) {
     return candidate.shortfallTotal < current.shortfallTotal
+  }
+  if (candidate.helpStaffTotal !== current.helpStaffTotal) {
+    return candidate.helpStaffTotal < current.helpStaffTotal
   }
   if (candidate.fairnessVariance !== current.fairnessVariance) {
     return candidate.fairnessVariance < current.fairnessVariance
