@@ -93,16 +93,18 @@ export interface OptimizationConfig {
 export const DEFAULT_OPTIMIZATION_CONFIG: OptimizationConfig = {
   maxIterations: 20000,
   noImprovementLimit: 1000,
-  timeLimitMs: 8000,
+  timeLimitMs: 10000,
 }
 
 /** 辞書式比較に使用する評価結果（値が小さいほど良い） */
 export interface EvalResult {
   /** 評価基準1: 全(日,時間帯)の最大不足人数 */
   shortfallPeak: number
-  /** 評価基準2: 通常スタッフの残余容量の母分散 */
+  /** 評価基準2: 全(日,時間帯)の不足人数合計（Σ max(0, requiredCount - アサイン人数)、requiredCount>0のペアのみ） */
+  shortfallTotal: number
+  /** 評価基準3: 通常スタッフの残余容量の母分散 */
   fairnessVariance: number
-  /** 評価基準3: 各日の駐車場利用スタッフ数の最大値 */
+  /** 評価基準4: 各日の駐車場利用スタッフ数の最大値 */
   parkingPeak: number
 }
 

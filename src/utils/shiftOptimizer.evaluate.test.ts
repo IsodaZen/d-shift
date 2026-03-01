@@ -15,37 +15,61 @@ import type { EvalResult } from '../types'
 describe('isBetter', () => {
   it('shortfallPeakが小さい解が優先される（基準1）', () => {
     // 解Aの最大不足が2人、解Bの最大不足が1人 → 解Bが優先
-    const evalA: EvalResult = { shortfallPeak: 2, fairnessVariance: 0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 1, fairnessVariance: 0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 2, shortfallTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
     expect(isBetter(evalB, evalA)).toBe(true)
     expect(isBetter(evalA, evalB)).toBe(false)
   })
 
-  it('shortfallPeakが同値の場合、fairnessVarianceが小さい解が優先される（基準2）', () => {
+  it('shortfallPeakが同値の場合、shortfallTotalが小さい解が優先される（基準2）', () => {
+    // 解AのshortfallTotal=3、解BのshortfallTotal=1 → 解Bが優先
+    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 3, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 1, fairnessVariance: 0, parkingPeak: 0 }
+    expect(isBetter(evalB, evalA)).toBe(true)
+    expect(isBetter(evalA, evalB)).toBe(false)
+  })
+
+  it('shortfallPeakとshortfallTotalが同値の場合、fairnessVarianceが小さい解が優先される（基準3）', () => {
     // 解Aの母分散=1.56、解Bの母分散=0.22 → 解Bが優先
-    const evalA: EvalResult = { shortfallPeak: 0, fairnessVariance: 1.56, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 0, fairnessVariance: 0.22, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, fairnessVariance: 1.56, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, fairnessVariance: 0.22, parkingPeak: 0 }
     expect(isBetter(evalB, evalA)).toBe(true)
     expect(isBetter(evalA, evalB)).toBe(false)
   })
 
-  it('基準1が異なる場合、基準2は比較に使わない', () => {
-    // 解Aの最大不足=1・母分散=0.1, 解Bの最大不足=0・母分散=2.0 → 解Bが優先
-    const evalA: EvalResult = { shortfallPeak: 1, fairnessVariance: 0.1, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 0, fairnessVariance: 2.0, parkingPeak: 0 }
+  it('基準1が異なる場合、基準2以降は比較に使わない', () => {
+    // 解Aの最大不足=1・shortfallTotal=10, 解Bの最大不足=2・shortfallTotal=2 → 解Aが優先（仕様シナリオ値）
+    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 10, fairnessVariance: 0.0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 2, shortfallTotal: 2, fairnessVariance: 0.0, parkingPeak: 0 }
+    expect(isBetter(evalA, evalB)).toBe(true)
+    expect(isBetter(evalB, evalA)).toBe(false)
+  })
+
+  it('基準1が同値で基準2が異なる場合、基準3以降は比較に使わない', () => {
+    // shortfallTotalの大小でのみ判定（fairnessVarianceは逆）
+    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 5, fairnessVariance: 0.0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 2, fairnessVariance: 9.9, parkingPeak: 0 }
     expect(isBetter(evalB, evalA)).toBe(true)
   })
 
-  it('基準1・2が同値の場合、parkingPeakが小さい解が優先される（基準3）', () => {
-    const evalA: EvalResult = { shortfallPeak: 0, fairnessVariance: 0, parkingPeak: 5 }
-    const evalB: EvalResult = { shortfallPeak: 0, fairnessVariance: 0, parkingPeak: 4 }
+  it('基準1・2が同値の場合、fairnessVarianceで優先する（仕様シナリオ値）', () => {
+    // 解A: fairnessVariance=0.5, 解B: fairnessVariance=2.0 → 解Aが優先
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, fairnessVariance: 0.5, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, fairnessVariance: 2.0, parkingPeak: 0 }
+    expect(isBetter(evalA, evalB)).toBe(true)
+    expect(isBetter(evalB, evalA)).toBe(false)
+  })
+
+  it('基準1〜3が同値の場合、parkingPeakが小さい解が優先される（基準4）', () => {
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, fairnessVariance: 0, parkingPeak: 5 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, fairnessVariance: 0, parkingPeak: 4 }
     expect(isBetter(evalB, evalA)).toBe(true)
     expect(isBetter(evalA, evalB)).toBe(false)
   })
 
   it('全基準が同値の場合はfalseを返す（同等）', () => {
-    const evalA: EvalResult = { shortfallPeak: 1, fairnessVariance: 0.5, parkingPeak: 3 }
-    const evalB: EvalResult = { shortfallPeak: 1, fairnessVariance: 0.5, parkingPeak: 3 }
+    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 2, fairnessVariance: 0.5, parkingPeak: 3 }
+    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 2, fairnessVariance: 0.5, parkingPeak: 3 }
     expect(isBetter(evalA, evalB)).toBe(false)
     expect(isBetter(evalB, evalA)).toBe(false)
   })
@@ -90,6 +114,39 @@ describe('evaluate', () => {
     const result = evaluate(params)
     // 毎日morning1人必要だが0人出勤 → 不足1人/日 → peak = 1
     expect(result.shortfallPeak).toBe(1)
+  })
+
+  it('全員休みの場合、shortfallTotalは全ペアの不足人数合計になる', () => {
+    const params = makeSingleSlotParams()
+    // working は全false（全員休み）、5日間×morning1人必要 → 合計5人不足
+    const result = evaluate(params)
+    expect(result.shortfallTotal).toBe(5)
+  })
+
+  it('一部の日に出勤がある場合、shortfallTotalは残余不足の合計になる', () => {
+    const params = makeSingleSlotParams()
+    // スタッフ0が2日目のみ出勤 → 不足は4日分
+    params.working[0][1] = true
+    const result = evaluate(params)
+    expect(result.shortfallTotal).toBe(4)
+  })
+
+  it('全員が必要人数を充足する場合、shortfallTotalは0になる', () => {
+    const params = makeSingleSlotParams()
+    // スタッフ0が毎日出勤 → 全5日で充足
+    for (let d = 0; d < 5; d++) {
+      params.working[0][d] = true
+    }
+    const result = evaluate(params)
+    expect(result.shortfallTotal).toBe(0)
+  })
+
+  it('requiredCountが0の時間帯はshortfallTotalの計算対象外になる', () => {
+    const params = makeSingleSlotParams()
+    // afternoon, eveningはrequiredCounts=0なので除外される
+    // morning1人必要だが全員休み → shortfallTotal=5（5日×1人不足）
+    const result = evaluate(params)
+    expect(result.shortfallTotal).toBe(5) // afternoonとeveningの0不足は含まれない
   })
 
   it('1人が毎日出勤する場合、shortfallPeakは0になる', () => {

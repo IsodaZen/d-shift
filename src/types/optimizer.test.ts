@@ -6,6 +6,7 @@ import type {
   OptimizerInput,
   WorkerMessage,
 } from './index'
+import { DEFAULT_OPTIMIZATION_CONFIG } from './index'
 import type { ShiftAssignment, Staff, HelpStaff, PreferredDayOff } from './index'
 
 describe('OptimizationConfig 型定義', () => {
@@ -13,22 +14,30 @@ describe('OptimizationConfig 型定義', () => {
     const config: OptimizationConfig = {
       maxIterations: 20000,
       noImprovementLimit: 1000,
-      timeLimitMs: 8000,
+      timeLimitMs: 10000,
     }
     expect(config.maxIterations).toBe(20000)
     expect(config.noImprovementLimit).toBe(1000)
-    expect(config.timeLimitMs).toBe(8000)
+    expect(config.timeLimitMs).toBe(10000)
+  })
+})
+
+describe('DEFAULT_OPTIMIZATION_CONFIG', () => {
+  it('timeLimitMs は 10000ms（10秒）', () => {
+    expect(DEFAULT_OPTIMIZATION_CONFIG.timeLimitMs).toBe(10000)
   })
 })
 
 describe('EvalResult 型定義', () => {
-  it('shortfallPeak, fairnessVariance, parkingPeak フィールドを持つ', () => {
+  it('shortfallPeak, shortfallTotal, fairnessVariance, parkingPeak フィールドを持つ', () => {
     const result: EvalResult = {
       shortfallPeak: 2,
+      shortfallTotal: 5,
       fairnessVariance: 1.5,
       parkingPeak: 3,
     }
     expect(result.shortfallPeak).toBe(2)
+    expect(result.shortfallTotal).toBe(5)
     expect(result.fairnessVariance).toBe(1.5)
     expect(result.parkingPeak).toBe(3)
   })
