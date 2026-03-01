@@ -1,7 +1,6 @@
 // タスク8.2, 8.3, 8.5〜8.7, 8.8: シフト表テーブルコンポーネント
 import { useState, useCallback } from 'react'
 import type { Staff, HelpStaff, TimeSlot } from '../types'
-import { TimeSlotBadge } from './TimeSlotBadge'
 import { AssignModal } from './AssignModal'
 import { Toast } from './Toast'
 import { formatDateLabel, getDayType } from '../utils/dateUtils'
@@ -225,8 +224,15 @@ export function ShiftTable({
           <tbody>
             {staff.map((s) => (
               <tr key={s.id}>
-                <td className="sticky left-0 z-10 bg-white border border-gray-200 px-2 py-1 font-medium text-gray-800 whitespace-nowrap">
-                  {s.name}
+                <td className="sticky left-0 z-10 bg-white border border-gray-200 px-2 py-1 text-gray-800 whitespace-nowrap">
+                  <div className="font-medium">{s.name}</div>
+                  <div className="text-[10px] font-normal text-gray-500">
+                    {(s.availableSlots.length > 0 ? s.availableSlots : ALL_TIME_SLOTS)
+                      .slice()
+                      .sort((a, b) => ALL_TIME_SLOTS.indexOf(a) - ALL_TIME_SLOTS.indexOf(b))
+                      .map((slot) => TIME_SLOT_LABELS[slot])
+                      .join(' / ')}
+                  </div>
                 </td>
                 {dates.map((date) => {
                   const isDayOff = dayOffs.some(
@@ -254,18 +260,15 @@ export function ShiftTable({
                           希望休
                         </span>
                       )}
-                      {assignedSlots.map((slot) => {
-                        const spot = getParkingSpot(s.id, date, slot)
-                        return (
-                          <div key={slot} className="mb-0.5">
-                            <TimeSlotBadge slot={slot} />
-                            {/* タスク8.7: 駐車場番号 */}
-                            {spot && (
-                              <span className="ml-1 text-[10px] text-gray-500">{spot}</span>
-                            )}
-                          </div>
-                        )
-                      })}
+                      {hasAssignment && (
+                        <span className="text-sm font-medium text-gray-700">◯</span>
+                      )}
+                      {/* タスク8.7: 駐車場番号（最初のアサインの駐車場番号を表示） */}
+                      {assignedSlots[0] && getParkingSpot(s.id, date, assignedSlots[0]) && (
+                        <span className="ml-1 text-[10px] text-gray-500">
+                          {getParkingSpot(s.id, date, assignedSlots[0])}
+                        </span>
+                      )}
                       {/* 固定インジケーター兼トグルボタン（統合）*/}
                       {hasAssignment && onSetCellLocked && (
                         <div className="flex justify-end mt-0.5">
@@ -309,8 +312,15 @@ export function ShiftTable({
                 </tr>
                 {helpStaff.map((hs) => (
                   <tr key={hs.id}>
-                    <td className="sticky left-0 z-10 bg-white border border-gray-200 px-2 py-1 font-medium text-gray-800 whitespace-nowrap">
-                      {hs.name}
+                    <td className="sticky left-0 z-10 bg-white border border-gray-200 px-2 py-1 text-gray-800 whitespace-nowrap">
+                      <div className="font-medium">{hs.name}</div>
+                      <div className="text-[10px] font-normal text-gray-500">
+                        {(hs.availableSlots.length > 0 ? hs.availableSlots : ALL_TIME_SLOTS)
+                          .slice()
+                          .sort((a, b) => ALL_TIME_SLOTS.indexOf(a) - ALL_TIME_SLOTS.indexOf(b))
+                          .map((slot) => TIME_SLOT_LABELS[slot])
+                          .join(' / ')}
+                      </div>
                     </td>
                     {dates.map((date) => {
                       const assignedSlots = getAssignedSlots(hs.id, date)
@@ -320,17 +330,14 @@ export function ShiftTable({
                           className="border border-gray-200 px-1 py-1 align-top cursor-pointer hover:bg-gray-50 bg-white"
                           onClick={() => setModal({ staffId: hs.id, date })}
                         >
-                          {assignedSlots.map((slot) => {
-                            const spot = getParkingSpot(hs.id, date, slot)
-                            return (
-                              <div key={slot} className="mb-0.5">
-                                <TimeSlotBadge slot={slot} />
-                                {spot && (
-                                  <span className="ml-1 text-[10px] text-gray-500">{spot}</span>
-                                )}
-                              </div>
-                            )
-                          })}
+                          {assignedSlots.length > 0 && (
+                            <span className="text-sm font-medium text-gray-700">◯</span>
+                          )}
+                          {assignedSlots[0] && getParkingSpot(hs.id, date, assignedSlots[0]) && (
+                            <span className="ml-1 text-[10px] text-gray-500">
+                              {getParkingSpot(hs.id, date, assignedSlots[0])}
+                            </span>
+                          )}
                         </td>
                       )
                     })}
