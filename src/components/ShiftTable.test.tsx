@@ -99,7 +99,7 @@ describe('ShiftTable / ヘルプスタッフのシフト表表示', () => {
     expect(screen.getByText('佐々木')).toBeTruthy()
   })
 
-  it('ヘルプスタッフのアサインバッジが表示される', () => {
+  it('ヘルプスタッフのアサインセルに◯が表示される', () => {
     const hs = makeHelpStaff('h1', '佐々木')
     const assignment: ShiftAssignment = {
       id: 'a1',
@@ -117,8 +117,11 @@ describe('ShiftTable / ヘルプスタッフのシフト表表示', () => {
         assignments={[assignment]}
       />,
     )
-    // 「午前」バッジが表示されていること
-    expect(screen.getAllByText('午前').length).toBeGreaterThan(0)
+    // アサインがある場合に「◯」が表示されること
+    const rows = screen.getAllByRole('row')
+    const helpRow = rows.find((r) => r.textContent?.includes('佐々木'))
+    const dateCell = helpRow?.querySelectorAll('td')[1]
+    expect(dateCell?.textContent).toContain('◯')
   })
 
   it('ヘルプスタッフのセルをクリックするとモーダルが表示される', async () => {
@@ -361,5 +364,90 @@ describe('ShiftTable / 通常スタッフセルクリック一括アサイン', 
 
     // availableSlots の morning のみアサインされる
     expect(onAddAssignment).toHaveBeenCalledWith('s1', '2025-01-06', 'morning', false)
+  })
+})
+
+// --- spec: shift-schedule-view / スタッフ名列にアサイン可能時間帯を表示 ---
+
+describe('ShiftTable / スタッフ名列へのアサイン可能時間帯表示', () => {
+  it('通常スタッフの名前列にavailableSlotsのラベルが表示される', () => {
+    const s = makeStaff('s1', { availableSlots: ['morning', 'afternoon'] })
+    render(<ShiftTable {...defaultProps} dates={['2025-01-06']} staff={[s]} />)
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const nameCell = staffRow?.querySelectorAll('td')[0]
+    expect(nameCell?.textContent).toContain('午前')
+    expect(nameCell?.textContent).toContain('午後')
+  })
+
+  it('availableSlotsが空の場合は全時間帯ラベルが表示される', () => {
+    const s = makeStaff('s1', { availableSlots: [] })
+    render(<ShiftTable {...defaultProps} dates={['2025-01-06']} staff={[s]} />)
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const nameCell = staffRow?.querySelectorAll('td')[0]
+    expect(nameCell?.textContent).toContain('午前')
+    expect(nameCell?.textContent).toContain('午後')
+    expect(nameCell?.textContent).toContain('夕方')
+  })
+
+  it('ヘルプスタッフの名前列にavailableSlotsのラベルが表示される', () => {
+    const hs = makeHelpStaff('h1', '佐々木')
+    // makeHelpStaff は availableSlots: ['morning', 'afternoon'] で作成される
+    render(<ShiftTable {...defaultProps} dates={['2025-01-06']} helpStaff={[hs]} />)
+
+    const rows = screen.getAllByRole('row')
+    const helpRow = rows.find((r) => r.textContent?.includes('佐々木'))
+    const nameCell = helpRow?.querySelectorAll('td')[0]
+    expect(nameCell?.textContent).toContain('午前')
+    expect(nameCell?.textContent).toContain('午後')
+  })
+})
+
+// --- spec: shift-schedule-view / アサイン有無を◯で表示 ---
+
+describe('ShiftTable / アサインセルの◯表示', () => {
+  it('アサインありセルに◯が表示される（通常スタッフ）', () => {
+    const s = makeStaff('s1')
+    const assignment: ShiftAssignment = {
+      id: 'a1',
+      staffId: 's1',
+      date: '2025-01-06',
+      timeSlot: 'morning',
+      parkingSpot: null,
+      isLocked: false,
+    }
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={[s]}
+        assignments={[assignment]}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCell = staffRow?.querySelectorAll('td')[1]
+    expect(dateCell?.textContent).toContain('◯')
+  })
+
+  it('アサインがないセルには◯が表示されない', () => {
+    const s = makeStaff('s1')
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={[s]}
+        assignments={[]}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCell = staffRow?.querySelectorAll('td')[1]
+    expect(dateCell?.textContent).not.toContain('◯')
   })
 })
