@@ -450,4 +450,53 @@ describe('ShiftTable / アサインセルの◯表示', () => {
     const dateCell = staffRow?.querySelectorAll('td')[1]
     expect(dateCell?.textContent).not.toContain('◯')
   })
+
+  it('複数時間帯にアサインがある場合でも◯は1つのみ表示される', () => {
+    const s = makeStaff('s1')
+    const assignments: ShiftAssignment[] = [
+      { id: 'a1', staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a2', staffId: 's1', date: '2025-01-06', timeSlot: 'afternoon', parkingSpot: null, isLocked: false },
+    ]
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={[s]}
+        assignments={assignments}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCell = staffRow?.querySelectorAll('td')[1]
+    // ◯ は1つだけ表示される
+    const circleCount = (dateCell?.textContent?.match(/◯/g) ?? []).length
+    expect(circleCount).toBe(1)
+  })
+
+  it('駐車場番号と◯が同時に表示される', () => {
+    const s = makeStaff('s1', { usesParking: true })
+    const assignment: ShiftAssignment = {
+      id: 'a1',
+      staffId: 's1',
+      date: '2025-01-06',
+      timeSlot: 'morning',
+      parkingSpot: 'A1',
+      isLocked: false,
+    }
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={[s]}
+        assignments={[assignment]}
+      />,
+    )
+
+    const rows = screen.getAllByRole('row')
+    const staffRow = rows.find((r) => r.textContent?.includes('スタッフs1'))
+    const dateCell = staffRow?.querySelectorAll('td')[1]
+    expect(dateCell?.textContent).toContain('◯')
+    expect(dateCell?.textContent).toContain('A1')
+  })
 })
