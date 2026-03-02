@@ -72,9 +72,10 @@ export function evaluate(params: EvaluateParams): EvalResult {
   const numDates = dates.length
   const numSlots = 3
 
-  // --- 評価基準1: 不足ピーク / 評価基準2: 不足合計 ---
+  // --- 評価基準1: 不足ピーク / 評価基準2: 不足合計 / 評価基準3: 超過合計 ---
   let shortfallPeak = 0
   let shortfallTotal = 0
+  let excessTotal = 0
   for (let d = 0; d < numDates; d++) {
     for (let s = 0; s < numSlots; s++) {
       const required = requiredCounts[d][s]
@@ -88,10 +89,11 @@ export function evaluate(params: EvaluateParams): EvalResult {
       const shortfall = Math.max(0, required - assigned)
       if (shortfall > shortfallPeak) shortfallPeak = shortfall
       shortfallTotal += shortfall
+      excessTotal += Math.max(0, assigned - required)
     }
   }
 
-  // --- 評価基準3: ヘルプスタッフ出勤日数合計 ---
+  // --- 評価基準4: ヘルプスタッフ出勤日数合計 ---
   let helpStaffTotal = 0
   for (let i = 0; i < numStaff; i++) {
     if (!isRegularStaff[i]) {
@@ -101,7 +103,7 @@ export function evaluate(params: EvaluateParams): EvalResult {
     }
   }
 
-  // --- 評価基準4: 公平性（残余容量の母分散）---
+  // --- 評価基準5: 公平性（残余容量の母分散）---
   // 通常スタッフのみ対象
   const regularResiduals: number[] = []
   for (let i = 0; i < numStaff; i++) {
@@ -119,7 +121,7 @@ export function evaluate(params: EvaluateParams): EvalResult {
       regularResiduals.reduce((acc, r) => acc + (r - mean) ** 2, 0) / regularResiduals.length
   }
 
-  // --- 評価基準5: 駐車場ピーク ---
+  // --- 評価基準6: 駐車場ピーク ---
   let parkingPeak = 0
   for (let d = 0; d < numDates; d++) {
     let parkingCount = 0
@@ -131,7 +133,7 @@ export function evaluate(params: EvaluateParams): EvalResult {
     if (parkingCount > parkingPeak) parkingPeak = parkingCount
   }
 
-  return { shortfallPeak, shortfallTotal, helpStaffTotal, fairnessVariance, parkingPeak }
+  return { shortfallPeak, shortfallTotal, excessTotal, helpStaffTotal, fairnessVariance, parkingPeak }
 }
 
 /**
@@ -144,6 +146,9 @@ export function isBetter(candidate: EvalResult, current: EvalResult): boolean {
   }
   if (candidate.shortfallTotal !== current.shortfallTotal) {
     return candidate.shortfallTotal < current.shortfallTotal
+  }
+  if (candidate.excessTotal !== current.excessTotal) {
+    return candidate.excessTotal < current.excessTotal
   }
   if (candidate.helpStaffTotal !== current.helpStaffTotal) {
     return candidate.helpStaffTotal < current.helpStaffTotal
