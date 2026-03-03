@@ -143,6 +143,69 @@ describe('グリーディ生成 → 最適化 結合テスト', () => {
     expect(optimized.some((a) => a.staffId === 'h1' && a.date === '2025-01-08')).toBe(false)
   })
 
+  it('午前のみスタッフと午後のみスタッフは同じ駐車場枠を共有できる', () => {
+    // 問題: toAssignments()が日単位でusedSpotsを管理するため、
+    // 午前スタッフがA1を使うと午後スタッフもA1を使用中とみなしてA2を割り当ててしまう
+    const staff: Staff[] = [
+      {
+        id: 's1',
+        name: '山田',
+        maxWeeklyShifts: 5,
+        availableSlots: ['morning'],
+        usesParking: true,
+      },
+      {
+        id: 's2',
+        name: '鈴木',
+        maxWeeklyShifts: 5,
+        availableSlots: ['afternoon'],
+        usesParking: true,
+      },
+    ]
+    const dates = ['2025-01-06']
+    const twoSpots = ['A1', 'A2']
+    const getRequiredCount = (_date: string, slot: string) => {
+      if (slot === 'morning') return 1
+      if (slot === 'afternoon') return 1
+      return 0
+    }
+
+    // グリーディ生成: 午前に山田、午後に鈴木がアサインされる
+    const greedyAssignments = generateAutoShift({
+      periodDates: dates,
+      staff,
+      dayOffs: [],
+      getRequiredCount,
+      allParkingSpots: twoSpots,
+    })
+
+    // 最適化（configにmaxIterations指定で確実に収束させる）
+    const optimized = optimizeShift(
+      {
+        initialAssignments: greedyAssignments,
+        staff,
+        helpStaff: [],
+        dayOffs: [],
+        periodDates: dates,
+        getRequiredCount,
+        totalParkingSpots: twoSpots.length,
+        config: { maxIterations: 100 },
+      },
+      twoSpots,
+    )
+
+    // 両スタッフがアサインされていることを確認
+    const morningAssignment = optimized.find((a) => a.staffId === 's1' && a.date === '2025-01-06')
+    const afternoonAssignment = optimized.find((a) => a.staffId === 's2' && a.date === '2025-01-06')
+    expect(morningAssignment).toBeDefined()
+    expect(afternoonAssignment).toBeDefined()
+
+    // 時間帯が異なるため、同じ駐車場枠を共有できる（両方ともA1を使えるはず）
+    expect(morningAssignment?.parkingSpot).not.toBeNull()
+    expect(afternoonAssignment?.parkingSpot).not.toBeNull()
+    expect(morningAssignment?.parkingSpot).toBe(afternoonAssignment?.parkingSpot)
+  })
+
   it('駐車場利用者の制約が最適化後も維持される', () => {
     const staff: Staff[] = [
       { id: 's1', name: '山田', maxWeeklyShifts: 5, availableSlots: ['morning'], usesParking: true },

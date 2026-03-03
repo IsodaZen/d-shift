@@ -15,93 +15,93 @@ import type { EvalResult } from '../types'
 describe('isBetter', () => {
   it('shortfallPeakが小さい解が優先される（基準1）', () => {
     // 解Aの最大不足が2人、解Bの最大不足が1人 → 解Bが優先
-    const evalA: EvalResult = { shortfallPeak: 2, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 2, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
     expect(isBetter(evalB, evalA)).toBe(true)
     expect(isBetter(evalA, evalB)).toBe(false)
   })
 
   it('shortfallPeakが同値の場合、shortfallTotalが小さい解が優先される（基準2）', () => {
     // 解AのshortfallTotal=3、解BのshortfallTotal=1 → 解Bが優先
-    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 3, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 1, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 3, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 1, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
     expect(isBetter(evalB, evalA)).toBe(true)
     expect(isBetter(evalA, evalB)).toBe(false)
   })
 
-  it('shortfallPeak・shortfallTotal・helpStaffTotalが同値の場合、fairnessVarianceが小さい解が優先される（基準4）', () => {
+  it('shortfallPeak・shortfallTotal・excessTotal・helpStaffTotalが同値の場合、fairnessVarianceが小さい解が優先される（基準5）', () => {
     // 解Aの母分散=1.56、解Bの母分散=0.22 → 解Bが優先（helpStaffTotalが同値）
-    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 1.56, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 0.22, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 1.56, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0.22, parkingPeak: 0 }
     expect(isBetter(evalB, evalA)).toBe(true)
     expect(isBetter(evalA, evalB)).toBe(false)
   })
 
   it('基準1が異なる場合、基準2以降は比較に使わない', () => {
     // 解Aの最大不足=1・shortfallTotal=10, 解Bの最大不足=2・shortfallTotal=2 → 解Aが優先（仕様シナリオ値）
-    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 10, helpStaffTotal: 0, fairnessVariance: 0.0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 2, shortfallTotal: 2, helpStaffTotal: 0, fairnessVariance: 0.0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 10, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0.0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 2, shortfallTotal: 2, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0.0, parkingPeak: 0 }
     expect(isBetter(evalA, evalB)).toBe(true)
     expect(isBetter(evalB, evalA)).toBe(false)
   })
 
   it('基準1が同値で基準2が異なる場合、基準3以降は比較に使わない', () => {
     // shortfallTotalの大小でのみ判定（fairnessVarianceは逆）
-    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 5, helpStaffTotal: 0, fairnessVariance: 0.0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 2, helpStaffTotal: 0, fairnessVariance: 9.9, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 5, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0.0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 2, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 9.9, parkingPeak: 0 }
     expect(isBetter(evalB, evalA)).toBe(true)
   })
 
   it('基準1・2・3が同値の場合、fairnessVarianceで優先する（仕様シナリオ値）', () => {
     // 解A: fairnessVariance=0.5, 解B: fairnessVariance=2.0 → 解Aが優先（helpStaffTotalが同値）
-    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 0.5, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 2.0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0.5, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 2.0, parkingPeak: 0 }
     expect(isBetter(evalA, evalB)).toBe(true)
     expect(isBetter(evalB, evalA)).toBe(false)
   })
 
-  it('基準1〜4が同値の場合、parkingPeakが小さい解が優先される（基準5）', () => {
-    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 5 }
-    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 4 }
+  it('基準1〜5が同値の場合、parkingPeakが小さい解が優先される（基準6）', () => {
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 5 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 4 }
     expect(isBetter(evalB, evalA)).toBe(true)
     expect(isBetter(evalA, evalB)).toBe(false)
   })
 
   it('全基準が同値の場合はfalseを返す（同等）', () => {
-    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 2, helpStaffTotal: 0, fairnessVariance: 0.5, parkingPeak: 3 }
-    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 2, helpStaffTotal: 0, fairnessVariance: 0.5, parkingPeak: 3 }
+    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 2, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0.5, parkingPeak: 3 }
+    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 2, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0.5, parkingPeak: 3 }
     expect(isBetter(evalA, evalB)).toBe(false)
     expect(isBetter(evalB, evalA)).toBe(false)
   })
 
   it('shortfallPeakとshortfallTotalが同値の場合、helpStaffTotalが小さい解が優先される（基準3）', () => {
     // 解A: helpStaffTotal=3, 解B: helpStaffTotal=1 → 解Bが優先
-    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 3, fairnessVariance: 0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 1, fairnessVariance: 0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 3, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 1, fairnessVariance: 0, parkingPeak: 0 }
     expect(isBetter(evalB, evalA)).toBe(true)
     expect(isBetter(evalA, evalB)).toBe(false)
   })
 
   it('ヘルプスタッフをアサインしない解（helpStaffTotal=0）が最も優先される', () => {
     // 解A: helpStaffTotal=0, 解B: helpStaffTotal=2 → 解Aが優先
-    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 2, fairnessVariance: 0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 2, fairnessVariance: 0, parkingPeak: 0 }
     expect(isBetter(evalA, evalB)).toBe(true)
     expect(isBetter(evalB, evalA)).toBe(false)
   })
 
   it('shortfallPeakが異なる場合はhelpStaffTotalは比較されない（不足が優先）', () => {
     // 解A: shortfallPeak=0, helpStaffTotal=5 → 解A優先（shortfallPeakが小さい）
-    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 5, fairnessVariance: 0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 5, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 1, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
     expect(isBetter(evalA, evalB)).toBe(true)
     expect(isBetter(evalB, evalA)).toBe(false)
   })
 
   it('shortfallTotalが異なる場合もhelpStaffTotalは比較されない', () => {
     // 解A: shortfallTotal=1, helpStaffTotal=0 → 解A優先（shortfallTotalが小さい）
-    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 1, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 2, helpStaffTotal: 5, fairnessVariance: 0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 1, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 2, excessTotal: 0, helpStaffTotal: 5, fairnessVariance: 0, parkingPeak: 0 }
     // wait: evalAのshortfallTotalが小さいのでevalAが優先
     // ただしhelpStaffTotalはevalAの方が大きい（0 < 5はevalA有利、しかしshortfallTotalで先に判定済み）
     // 修正: evalBのshortfallTotalが大きく不利
@@ -111,8 +111,8 @@ describe('isBetter', () => {
 
   it('helpStaffTotalが同値の場合、fairnessVarianceで比較される（基準4）', () => {
     // helpStaffTotalが同じなら、fairnessVarianceで判定
-    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 1, fairnessVariance: 0.5, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 1, fairnessVariance: 2.0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 1, fairnessVariance: 0.5, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 1, fairnessVariance: 2.0, parkingPeak: 0 }
     expect(isBetter(evalA, evalB)).toBe(true)
     expect(isBetter(evalB, evalA)).toBe(false)
   })
@@ -120,9 +120,49 @@ describe('isBetter', () => {
   it('helpStaffTotalが小さくてもfairnessVarianceよりhelpStaffTotalが優先される', () => {
     // 解A: helpStaffTotal=1, fairnessVariance=0.0 / 解B: helpStaffTotal=3, fairnessVariance=0.0
     // → helpStaffTotalで解Aが優先（fairnessVarianceは同じなので関係なし）
-    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 1, fairnessVariance: 0.0, parkingPeak: 0 }
-    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, helpStaffTotal: 3, fairnessVariance: 0.0, parkingPeak: 0 }
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 1, fairnessVariance: 0.0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 3, fairnessVariance: 0.0, parkingPeak: 0 }
     expect(isBetter(evalA, evalB)).toBe(true)
+  })
+
+  // --- excessTotal比較のテスト ---
+
+  it('超過なし解が超過あり解より優先される（shortfallPeak・shortfallTotal同値時）', () => {
+    // 解A: excessTotal=1（ある(日,時間帯)ペアで1人超過）
+    // 解B: excessTotal=0（超過なし）
+    // → 解Bが優先（超過合計 0 < 1）
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 1, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    expect(isBetter(evalB, evalA)).toBe(true)
+    expect(isBetter(evalA, evalB)).toBe(false)
+  })
+
+  it('超過合計が小さい解が優先される', () => {
+    // 解A: excessTotal=3（複数スロットの超過合計）
+    // 解B: excessTotal=1（小さい超過合計）
+    // → 解Bが優先
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 3, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 1, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    expect(isBetter(evalB, evalA)).toBe(true)
+    expect(isBetter(evalA, evalB)).toBe(false)
+  })
+
+  it('shortfallPeakが異なればexcessTotalは比較に使用されない', () => {
+    // 解A: shortfallPeak=1, excessTotal=0（不足あり・超過なし）
+    // 解B: shortfallPeak=0, excessTotal=5（不足なし・超過多）
+    // → 解Bが優先（shortfallPeakが優先されるため超過合計が多くても不足なしが優先）
+    const evalA: EvalResult = { shortfallPeak: 1, shortfallTotal: 1, excessTotal: 0, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 5, helpStaffTotal: 0, fairnessVariance: 0, parkingPeak: 0 }
+    expect(isBetter(evalB, evalA)).toBe(true)
+    expect(isBetter(evalA, evalB)).toBe(false)
+  })
+
+  it('excessTotalが同値ならfairnessVarianceで比較される', () => {
+    // excessTotal同値・helpStaffTotal同値 → fairnessVarianceで判定
+    const evalA: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 1, helpStaffTotal: 0, fairnessVariance: 2.0, parkingPeak: 0 }
+    const evalB: EvalResult = { shortfallPeak: 0, shortfallTotal: 0, excessTotal: 1, helpStaffTotal: 0, fairnessVariance: 0.5, parkingPeak: 0 }
+    expect(isBetter(evalB, evalA)).toBe(true)
+    expect(isBetter(evalA, evalB)).toBe(false)
   })
 })
 
@@ -374,5 +414,63 @@ describe('evaluate', () => {
     }
     const result = evaluate(params)
     expect(result.fairnessVariance).toBeCloseTo(0, 5)
+  })
+
+  // --- excessTotal（超過人数合計）のテスト ---
+
+  it('超過のないケースでexcessTotal = 0', () => {
+    // morning 1人必要、スタッフ0が毎日出勤（アサイン=必要数 → 超過なし）
+    const params = makeSingleSlotParams()
+    for (let d = 0; d < 5; d++) {
+      params.working[0][d] = true
+    }
+    const result = evaluate(params)
+    expect(result.excessTotal).toBe(0)
+  })
+
+  it('1スロット超過でexcessTotalが正しく計算される（必要1人・アサイン2人 → excessTotal = 1）', () => {
+    // morning 1人必要だが2人アサイン → 超過1
+    const params = makeSingleSlotParams()
+    // スタッフ0,1が0日目に出勤（requiredCounts[0][0]=1, assigned=2 → excess=1）
+    params.working[0][0] = true
+    params.working[1][0] = true
+    const result = evaluate(params)
+    expect(result.excessTotal).toBe(1)
+  })
+
+  it('複数スロット超過の合算が正しい（スロット1超過1 + スロット2超過2 → excessTotal = 3）', () => {
+    // morning: 必要2人, アサイン3人 → 超過1
+    // afternoon: 必要1人, アサイン3人 → 超過2
+    // → excessTotal = 1 + 2 = 3
+    const dates = ['2025-01-06']
+    const working: boolean[][] = [[true], [true], [true]]  // 全員0日目出勤
+    const isRegularStaff: boolean[] = [true, true, true]
+    const staffIsParking: boolean[] = [false, false, false]
+    const weeklyCapacity: number[] = [5, 5, 5]
+    const staffSlots: number[][] = [[0, 1], [0, 1], [0, 1]]  // morning + afternoon
+    const requiredCounts: number[][] = [[2, 1, 0]]  // morning=2, afternoon=1
+    const result = evaluate({
+      working, isRegularStaff, staffIsParking, weeklyCapacity, staffSlots, dates, requiredCounts,
+    })
+    // morning: 3アサイン - 2必要 = 超過1
+    // afternoon: 3アサイン - 1必要 = 超過2
+    expect(result.excessTotal).toBe(3)
+  })
+
+  it('必要人数0のスロットはexcessTotal計算から除外される', () => {
+    // スタッフがmorning(required=1)とevening(required=0)を担当
+    // morning: 1人アサイン, 1人必要 → 超過なし
+    // evening: 1人アサイン, 0人必要 → required=0なので除外（超過としてカウントしない）
+    const dates = ['2025-01-06']
+    const working: boolean[][] = [[true]]
+    const isRegularStaff: boolean[] = [true]
+    const staffIsParking: boolean[] = [false]
+    const weeklyCapacity: number[] = [5]
+    const staffSlots: number[][] = [[0, 2]]  // morning + evening
+    const requiredCounts: number[][] = [[1, 0, 0]]  // morning=1, afternoon=0, evening=0
+    const result = evaluate({
+      working, isRegularStaff, staffIsParking, weeklyCapacity, staffSlots, dates, requiredCounts,
+    })
+    expect(result.excessTotal).toBe(0)
   })
 })
