@@ -29,16 +29,18 @@ describe('DEFAULT_OPTIMIZATION_CONFIG', () => {
 })
 
 describe('EvalResult 型定義', () => {
-  it('shortfallPeak, shortfallTotal, helpStaffTotal, fairnessVariance, parkingPeak フィールドを持つ', () => {
+  it('shortfallPeak, shortfallTotal, excessTotal, helpStaffTotal, fairnessVariance, parkingPeak フィールドを持つ', () => {
     const result: EvalResult = {
       shortfallPeak: 2,
       shortfallTotal: 5,
+      excessTotal: 3,
       helpStaffTotal: 1,
       fairnessVariance: 1.5,
       parkingPeak: 3,
     }
     expect(result.shortfallPeak).toBe(2)
     expect(result.shortfallTotal).toBe(5)
+    expect(result.excessTotal).toBe(3)
     expect(result.fairnessVariance).toBe(1.5)
     expect(result.parkingPeak).toBe(3)
   })
