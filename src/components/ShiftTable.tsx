@@ -1,5 +1,5 @@
 // タスク8.2, 8.3, 8.5〜8.7, 8.8: シフト表テーブルコンポーネント
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import type { Staff, HelpStaff, TimeSlot } from '../types'
 import { AssignModal } from './AssignModal'
 import { Toast } from './Toast'
@@ -28,7 +28,7 @@ interface ModalState {
   date: string
 }
 
-export function ShiftTable({
+export const ShiftTable: React.FC<ShiftTableProps> = ({
   dates,
   staff,
   assignments,
@@ -39,7 +39,7 @@ export function ShiftTable({
   onRemoveAssignment,
   onSetCellLocked,
   getRequiredCount,
-}: ShiftTableProps) {
+}) => {
   const [modal, setModal] = useState<ModalState | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -155,19 +155,38 @@ export function ShiftTable({
     [modal, helpStaff, getAssignedSlots, onAddAssignment, onRemoveAssignment],
   )
 
-  const getHelpAlert = (date: string, timeSlot: TimeSlot) =>
-    helpAlerts.find((h) => h.date === date && h.timeSlot === timeSlot)
+  /** 通常スタッフのIDセット（ヘルプスタッフ除外に使用） */
+  const staffIdSet = useMemo(() => new Set(staff.map((s) => s.id)), [staff])
+
+  /** 通常スタッフのみの日付・時間帯別アサイン数を算出する */
+  const getRegularAssignedCount = useCallback(
+    (date: string, slot: TimeSlot): number => {
+      return assignments.filter(
+        (a) => a.staffId && staffIdSet.has(a.staffId) && a.date === date && a.timeSlot === slot,
+      ).length
+    },
+    [assignments, staffIdSet],
+  )
+
+  const getHelpAlert = useCallback(
+    (date: string, timeSlot: TimeSlot) =>
+      helpAlerts.find((h) => h.date === date && h.timeSlot === timeSlot),
+    [helpAlerts],
+  )
 
   /** アサイン数が必要人数を下回る時間帯が一つでもある場合に不足数の最大値を返す */
-  const getAssignmentShortage = (date: string): number => {
-    if (!getRequiredCount) return 0
-    return ALL_TIME_SLOTS.reduce((max, slot) => {
-      const required = getRequiredCount(date, slot)
-      if (required <= 0) return max
-      const assigned = assignments.filter((a) => a.date === date && a.timeSlot === slot).length
-      return Math.max(max, required - assigned)
-    }, 0)
-  }
+  const getAssignmentShortage = useCallback(
+    (date: string): number => {
+      if (!getRequiredCount) return 0
+      return ALL_TIME_SLOTS.reduce((max, slot) => {
+        const required = getRequiredCount(date, slot)
+        if (required <= 0) return max
+        const assigned = assignments.filter((a) => a.date === date && a.timeSlot === slot).length
+        return Math.max(max, required - assigned)
+      }, 0)
+    },
+    [assignments, getRequiredCount],
+  )
 
   const modalHelpStaff = modal ? helpStaff.find((hs) => hs.id === modal.staffId) : null
 
@@ -222,6 +241,27 @@ export function ShiftTable({
             </tr>
           </thead>
           <tbody>
+            {/* 時間帯別アサイン数集計行 */}
+            {ALL_TIME_SLOTS.map((slot) => (
+              <tr key={`summary-${slot}`}>
+                <td className="sticky left-0 z-10 bg-gray-50 border border-gray-200 px-2 py-1 text-gray-600 font-medium whitespace-nowrap text-[10px]">
+                  {TIME_SLOT_LABELS[slot]}
+                </td>
+                {dates.map((date) => {
+                  const assigned = getRegularAssignedCount(date, slot)
+                  const required = getRequiredCount ? getRequiredCount(date, slot) : null
+                  const isShort = required !== null && required > 0 && assigned < required
+                  const cellClass = isShort
+                    ? 'border border-gray-200 px-1 py-1 text-center text-[10px] bg-orange-50 text-orange-700'
+                    : 'border border-gray-200 px-1 py-1 text-center text-[10px] bg-gray-50 text-gray-600'
+                  return (
+                    <td key={date} className={cellClass}>
+                      {required !== null ? `${assigned}/${required}` : `${assigned}/-`}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
             {staff.map((s) => (
               <tr key={s.id}>
                 <td className="sticky left-0 z-10 bg-white border border-gray-200 px-2 py-1 text-gray-800 whitespace-nowrap">
