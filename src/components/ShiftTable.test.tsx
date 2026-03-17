@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ShiftTable } from './ShiftTable'
-import type { Staff, HelpStaff, ShiftAssignment } from '../types'
+import type { Staff, HelpStaff, ShiftAssignment, TimeSlot } from '../types'
 
 // --- spec: shift-schedule-view / 土日祝の列ヘッダースタイル ---
 
@@ -498,5 +498,170 @@ describe('ShiftTable / アサインセルの◯表示', () => {
     const dateCell = staffRow?.querySelectorAll('td')[1]
     expect(dateCell?.textContent).toContain('◯')
     expect(dateCell?.textContent).toContain('A1')
+  })
+})
+
+// --- spec: hourly-assignment-count / 時間帯別アサイン数集計行 ---
+
+/** 集計行（午前・午後・夕方のいずれか）を最初のtdテキストで特定するヘルパー */
+const findSummaryRow = (label: string) => {
+  const rows = screen.getAllByRole('row')
+  return rows.find((r) => r.querySelectorAll('td')[0]?.textContent?.trim() === label)
+}
+
+describe('ShiftTable / 時間帯別アサイン数集計行', () => {
+  it('集計行が時間帯ごとに3行（午前・午後・夕方）表示される', () => {
+    const getRequiredCount = vi.fn().mockReturnValue(6)
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        getRequiredCount={getRequiredCount}
+      />,
+    )
+    const rows = screen.getAllByRole('row')
+    const summaryRows = rows.filter((r) => {
+      const txt = r.querySelectorAll('td')[0]?.textContent?.trim()
+      return txt === '午前' || txt === '午後' || txt === '夕方'
+    })
+    expect(summaryRows).toHaveLength(3)
+  })
+
+  it('各日・各時間帯のアサイン数と必要人数が「3/6」形式で表示される', () => {
+    const assignments: ShiftAssignment[] = [
+      { id: 'a1', staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a2', staffId: 's2', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a3', staffId: 's3', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+    ]
+    const getRequiredCount = (_date: string, slot: TimeSlot): number => (slot === 'morning' ? 6 : 0)
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={['s1', 's2', 's3'].map((id) => makeStaff(id))}
+        assignments={assignments}
+        getRequiredCount={getRequiredCount}
+      />,
+    )
+    const morningRow = findSummaryRow('午前')
+    const dateCell = morningRow?.querySelectorAll('td')[1]
+    expect(dateCell?.textContent).toContain('3/6')
+  })
+
+  it('アサイン数が必要人数を下回る場合はオレンジ系クラスが付与される', () => {
+    const assignments: ShiftAssignment[] = [
+      { id: 'a1', staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a2', staffId: 's2', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a3', staffId: 's3', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+    ]
+    const getRequiredCount = (_date: string, slot: TimeSlot): number => (slot === 'morning' ? 6 : 0)
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={['s1', 's2', 's3'].map((id) => makeStaff(id))}
+        assignments={assignments}
+        getRequiredCount={getRequiredCount}
+      />,
+    )
+    const morningRow = findSummaryRow('午前')
+    const dateCell = morningRow?.querySelectorAll('td')[1]
+    expect(dateCell?.className).toMatch(/orange/)
+  })
+
+  it('アサイン数が0の場合も警告色（オレンジ系）が付与される', () => {
+    const getRequiredCount = (_date: string, slot: TimeSlot): number => (slot === 'morning' ? 3 : 0)
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        assignments={[]}
+        getRequiredCount={getRequiredCount}
+      />,
+    )
+    const morningRow = findSummaryRow('午前')
+    const dateCell = morningRow?.querySelectorAll('td')[1]
+    expect(dateCell?.className).toMatch(/orange/)
+  })
+
+  it('アサイン数が必要人数以上の場合は警告色が付与されない', () => {
+    const assignments: ShiftAssignment[] = Array.from({ length: 6 }, (_, i) => ({
+      id: `a${i}`,
+      staffId: `s${i + 1}`,
+      date: '2025-01-06',
+      timeSlot: 'morning' as TimeSlot,
+      parkingSpot: null,
+      isLocked: false,
+    }))
+    const getRequiredCount = (_date: string, slot: TimeSlot): number => (slot === 'morning' ? 6 : 0)
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={Array.from({ length: 6 }, (_, i) => makeStaff(`s${i + 1}`))}
+        assignments={assignments}
+        getRequiredCount={getRequiredCount}
+      />,
+    )
+    const morningRow = findSummaryRow('午前')
+    const dateCell = morningRow?.querySelectorAll('td')[1]
+    expect(dateCell?.className).not.toMatch(/orange/)
+  })
+
+  it('必要人数が0の場合は通常色で「0/0」が表示される', () => {
+    const getRequiredCount = (): number => 0
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        assignments={[]}
+        getRequiredCount={getRequiredCount}
+      />,
+    )
+    const morningRow = findSummaryRow('午前')
+    const dateCell = morningRow?.querySelectorAll('td')[1]
+    expect(dateCell?.textContent).toContain('0/0')
+    expect(dateCell?.className).not.toMatch(/orange/)
+  })
+
+  it('ヘルプスタッフのアサインは集計行に含まれない', () => {
+    const assignments: ShiftAssignment[] = [
+      { id: 'a1', staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a2', staffId: 's2', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a3', staffId: 'h1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+    ]
+    const getRequiredCount = (_date: string, slot: TimeSlot): number => (slot === 'morning' ? 6 : 0)
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={['s1', 's2'].map((id) => makeStaff(id))}
+        helpStaff={[makeHelpStaff('h1')]}
+        assignments={assignments}
+        getRequiredCount={getRequiredCount}
+      />,
+    )
+    const morningRow = findSummaryRow('午前')
+    const dateCell = morningRow?.querySelectorAll('td')[1]
+    expect(dateCell?.textContent).toContain('2/6')
+  })
+
+  it('getRequiredCount 未渡し時は「N/-」形式で表示される', () => {
+    const assignments: ShiftAssignment[] = [
+      { id: 'a1', staffId: 's1', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+      { id: 'a2', staffId: 's2', date: '2025-01-06', timeSlot: 'morning', parkingSpot: null, isLocked: false },
+    ]
+    render(
+      <ShiftTable
+        {...defaultProps}
+        dates={['2025-01-06']}
+        staff={['s1', 's2'].map((id) => makeStaff(id))}
+        assignments={assignments}
+        // getRequiredCount 未渡し
+      />,
+    )
+    const morningRow = findSummaryRow('午前')
+    const dateCell = morningRow?.querySelectorAll('td')[1]
+    expect(dateCell?.textContent).toContain('2/-')
   })
 })
